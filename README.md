@@ -1,55 +1,57 @@
+<p align="right">🇺🇸 English · <a href="./README.pt-BR.md">🇧🇷 Português</a></p>
+
 # LicitaHawk
 
-API REST + servidor MCP sobre os dados oficiais de licitações públicas do **PNCP** (Portal Nacional de Contratações Públicas, Brasil), com alerta por webhook/email, assinatura recorrente (Asaas) e nota fiscal de serviço (Focus NFe). Monorepo backend (Express/TypeScript) + frontend (Angular).
+REST API + MCP server over the official public procurement (tender) data from Brazil's **PNCP** (Portal Nacional de Contratações Públicas), with webhook/email alerting, recurring subscription billing (Asaas), and service invoice issuance (Focus NFe). Monorepo: Express/TypeScript backend + Angular frontend.
 
-## O que o produto faz
+## What it does
 
-- **Ingestão contínua** dos editais publicados no PNCP (scheduler + reconciliação), gravados em DynamoDB.
-- **API de busca** com filtros por UF, modalidade, palavra-chave, valor, órgão, município e situação, com paginação determinística.
-- **Servidor MCP** que expõe as mesmas buscas como ferramentas para agentes de IA.
-- **Alertas recorrentes**: o usuário salva um filtro e escolhe um canal de entrega — webhook (com assinatura HMAC) ou email — para ser notificado quando uma licitação nova casar com o critério.
-- **Billing**: planos pagos via Asaas (assinatura recorrente), com emissão de nota fiscal de serviço via Focus NFe.
-- **Frontend Angular** com dashboard, tela de busca, alertas, webhooks, uso e conta.
+- **Continuous ingestion** of tenders published on the PNCP (scheduler + reconciliation), stored in DynamoDB.
+- **Search API** with filters by state (UF), procurement modality, keyword, value, contracting body, municipality, and status, with deterministic pagination.
+- **MCP server** exposing the same search capabilities as tools for AI agents.
+- **Recurring alerts**: a user saves a filter and picks a delivery channel, webhook (HMAC-signed) or email, to be notified when a new tender matches the criteria.
+- **Billing**: paid plans via Asaas (recurring subscription), with service invoice (nota fiscal) issuance through Focus NFe.
+- **Angular frontend** with a dashboard, search screen, alerts, webhooks, usage, and account pages.
 
-## Estrutura
+## Structure
 
 ```
-backend/    Express 4 + TypeScript, DynamoDB, servidor MCP, scheduler de ingestão, billing Asaas
-frontend/   Angular (standalone, sem NgRx), auth via Cognito
-legal/      Termos de serviço e afins
-docs/       Padrões de qualidade de código do projeto
+backend/    Express 4 + TypeScript, DynamoDB, MCP server, ingestion scheduler, Asaas billing
+frontend/   Angular (standalone, no NgRx), auth via Cognito
+legal/      Terms of service and related documents
+docs/       Project code quality standards
 ```
 
 ## Stack
 
-**Backend:** Node.js + TypeScript, Express 4, DynamoDB (`@aws-sdk/lib-dynamodb`), Zod para validação de boundary, Vitest, `@modelcontextprotocol/*` para o servidor MCP, `node-cron` para o scheduler de ingestão, Cognito (`aws-jwt-verify`) para auth de API.
+**Backend:** Node.js + TypeScript, Express 4, DynamoDB (`@aws-sdk/lib-dynamodb`), Zod for boundary validation, Vitest, `@modelcontextprotocol/*` for the MCP server, `node-cron` for the ingestion scheduler, Cognito (`aws-jwt-verify`) for API auth.
 
-**Frontend:** Angular standalone components (sem NgRx, sem Amplify), `amazon-cognito-identity-js` para auth direto contra o Cognito.
+**Frontend:** Angular standalone components (no NgRx, no Amplify), `amazon-cognito-identity-js` for auth directly against Cognito.
 
-**Infra:** AWS (DynamoDB, Cognito, Route 53, SES/ZeptoMail), Asaas (billing) e Focus NFe (nota fiscal).
+**Infra:** AWS (DynamoDB, Cognito, Route 53, SES/ZeptoMail), Asaas (billing), and Focus NFe (invoicing).
 
-## Rodando localmente
+## Running locally
 
-Pré-requisitos: Node.js 20+, Docker (para o DynamoDB local).
+Prerequisites: Node.js 20+, Docker (for local DynamoDB).
 
 ### Backend
 
 ```bash
 cd backend
-cp .env.example .env   # preencha as variáveis, veja a seção abaixo
-docker compose up -d   # sobe DynamoDB Local + dynamodb-admin (porta 8001)
+cp .env.example .env   # fill in the variables, see the section below
+docker compose up -d   # starts DynamoDB Local + dynamodb-admin (port 8001)
 npm install
-npm run dev             # API em http://localhost:3000
+npm run dev             # API at http://localhost:3000
 ```
 
-Outros scripts úteis dentro de `backend/`:
+Other useful scripts inside `backend/`:
 
 ```bash
 npm run typecheck              # tsc --noEmit
 npm test                       # vitest run
-npm run ingest                 # roda uma ingestão manual do PNCP
-npm run reconcile              # reconciliação de dados já ingeridos
-npm run create-test-key        # cria uma API key de teste
+npm run ingest                 # runs a manual PNCP ingestion
+npm run reconcile              # reconciles already-ingested data
+npm run create-test-key        # creates a test API key
 ```
 
 ### Frontend
@@ -60,21 +62,21 @@ npm install
 npm start   # ng serve, http://localhost:4200
 ```
 
-## Variáveis de ambiente
+## Environment variables
 
-Todas as variáveis sensíveis do backend ficam em `backend/.env`, que **nunca é versionado** (veja `.gitignore`). O arquivo `backend/.env.example` documenta cada uma delas com comentários explicando origem, formato esperado e comportamento default quando ausente — copie-o para `.env` e preencha antes de rodar o projeto. Resumo das seções:
+All sensitive backend variables live in `backend/.env`, which is **never committed** (see `.gitignore`). `backend/.env.example` documents every one of them with comments explaining origin, expected format, and default behavior when absent, copy it to `.env` and fill it in before running the project. Section summary:
 
-| Bloco | Para que serve |
-|-------|-----------------|
-| Ambiente local | porta, região AWS, endpoint do DynamoDB local |
-| Cognito | pool e client ID usados para validar o JWT do frontend |
-| Asaas | chaves de sandbox/produção do billing e segredo do webhook |
-| Focus NFe | tokens de emissão de nota fiscal (produção/homologação) e segredo dos webhooks |
-| Prestador | dados fiscais do CNPJ emissor da nota (compartilhado com outro produto do mesmo CNPJ) |
-| Email | provedor de envio (`EMAIL_PROVIDER`) e credenciais do ZeptoMail |
+| Block | Purpose |
+|-------|---------|
+| Local environment | port, AWS region, local DynamoDB endpoint |
+| Cognito | pool and client ID used to validate the frontend's JWT |
+| Asaas | sandbox/production billing keys and webhook secret |
+| Focus NFe | invoice-issuance tokens (production/staging) and webhook secrets |
+| Prestador (issuer) | tax data for the CNPJ issuing the invoice (shared with another product under the same CNPJ) |
+| Email | delivery provider (`EMAIL_PROVIDER`) and ZeptoMail credentials |
 
-O frontend não usa `.env`: a configuração pública do Cognito (pool ID, client ID — não são segredos) vive nos arquivos de ambiente do Angular.
+The frontend doesn't use `.env`: Cognito's public config (pool ID, client ID, not secrets) lives in Angular's environment files.
 
-## Licença
+## License
 
-[PolyForm Noncommercial License 1.0.0](./LICENSE). Uso não comercial é livre; uso comercial requer licença separada concedida pelo autor. Veja a seção **Noncommercial Purposes** e **Personal Uses** do arquivo `LICENSE` para o que já está liberado por padrão.
+[PolyForm Noncommercial License 1.0.0](./LICENSE). Noncommercial use is free; commercial use requires a separate license granted by the author. See the **Noncommercial Purposes** and **Personal Uses** sections of the `LICENSE` file for what's already permitted by default.
