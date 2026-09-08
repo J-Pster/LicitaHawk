@@ -1,0 +1,88 @@
+:host {
+  display: block;
+}
+
+.account-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pending-panel {
+  border-color: var(--color-warning);
+}
+
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.plan-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--panel-muted);
+}
+
+.plan-tile--current {
+  border-color: var(--brand-gold);
+  background: var(--surface);
+}
+
+.plan-tile__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.plan-tile__head h3 {
+  font-size: 1.05rem;
+}
+
+.plan-tile__price {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.plan-tile__features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text);
+  flex: 1;
+}
+
+.plan-tile__features li {
+  padding-left: 16px;
+  position: relative;
+}
+
+.plan-tile__features li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--link);
+}
+
+.plan-tile__current-chip {
+  align-self: flex-start;
+}
+
+@media (max-width: 860px) {
+  .plans-grid {
+    grid-template-columns: 1fr;
+  }
+}

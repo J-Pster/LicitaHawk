@@ -1,0 +1,64 @@
+{
+  "TableName": "Tenders",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    { "AttributeName": "pncp_control_number", "AttributeType": "S" },
+    { "AttributeName": "uf", "AttributeType": "S" },
+    { "AttributeName": "data_publicacao", "AttributeType": "S" },
+    { "AttributeName": "modalidade", "AttributeType": "S" },
+    { "AttributeName": "uf_modalidade", "AttributeType": "S" },
+    { "AttributeName": "org_cnpj", "AttributeType": "S" }
+  ],
+  "KeySchema": [
+    { "AttributeName": "pncp_control_number", "KeyType": "HASH" }
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "GSI1-uf-data_publicacao",
+      "KeySchema": [
+        { "AttributeName": "uf", "KeyType": "HASH" },
+        { "AttributeName": "data_publicacao", "KeyType": "RANGE" }
+      ],
+      "Projection": { "ProjectionType": "ALL" }
+    },
+    {
+      "IndexName": "GSI2-modalidade-data_publicacao",
+      "KeySchema": [
+        { "AttributeName": "modalidade", "KeyType": "HASH" },
+        { "AttributeName": "data_publicacao", "KeyType": "RANGE" }
+      ],
+      "Projection": { "ProjectionType": "ALL" }
+    },
+    {
+      "IndexName": "GSI3-org_cnpj-data_publicacao",
+      "KeySchema": [
+        { "AttributeName": "org_cnpj", "KeyType": "HASH" },
+        { "AttributeName": "data_publicacao", "KeyType": "RANGE" }
+      ],
+      "Projection": { "ProjectionType": "ALL" }
+    },
+    {
+      "IndexName": "GSI4-uf_modalidade-data_publicacao",
+      "KeySchema": [
+        { "AttributeName": "uf_modalidade", "KeyType": "HASH" },
+        { "AttributeName": "data_publicacao", "KeyType": "RANGE" }
+      ],
+      "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+          "org_cnpj",
+          "org_name",
+          "uf",
+          "municipio",
+          "modalidade",
+          "objeto",
+          "valor_estimado",
+          "data_atualizacao",
+          "situacao",
+          "link_pncp",
+          "keywords_tokenized"
+        ]
+      }
+    }
+  ]
+}

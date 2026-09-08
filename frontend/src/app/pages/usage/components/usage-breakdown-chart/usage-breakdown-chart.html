@@ -1,0 +1,32 @@
+<div class="donut-wrap">
+  @if (hasData()) {
+    <svg viewBox="0 0 140 140" class="donut-svg" role="img" aria-label="Proporção de chamadas por API, MCP, Dashboard, Webhook e Email">
+      <circle cx="70" cy="70" [attr.r]="radius" class="donut-track" />
+      @for (s of slices(); track s.key) {
+        @if (s.value > 0) {
+          <circle
+            cx="70"
+            cy="70"
+            [attr.r]="radius"
+            class="donut-segment"
+            [class]="'donut-' + s.key"
+            [attr.stroke-dasharray]="s.dashArray"
+            [attr.stroke-dashoffset]="s.dashOffset"
+          />
+        }
+      }
+      <text x="70" y="66" text-anchor="middle" class="donut-center-value">{{ total() }}</text>
+      <text x="70" y="82" text-anchor="middle" class="donut-center-label">chamadas</text>
+    </svg>
+
+    <ul class="donut-legend">
+      @for (s of slices(); track s.key) {
+        <li class="legend-item">
+          <i class="swatch" [class]="'swatch-' + s.key"></i>{{ s.label }} &mdash; {{ s.value }} ({{ s.percent }}%)
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="no-data-note">Ainda sem chamadas registradas.</p>
+  }
+</div>

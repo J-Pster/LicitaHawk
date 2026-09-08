@@ -1,0 +1,53 @@
+:host {
+  display: block;
+}
+
+.wh {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.wh__url {
+  max-width: 320px;
+  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.wh__text {
+  color: var(--text);
+  font-size: 0.92rem;
+  margin-bottom: 14px;
+}
+
+.wh code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--panel-muted);
+  border: 1px solid var(--color-border);
+  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  font-size: 0.85em;
+}
+
+/* Blocos empilhados dentro de uma seção expansível precisam de respiro entre si. */
+.wh app-code-block + app-code-block,
+.wh app-code-block + .form-hint {
+  display: block;
+  margin-top: 14px;
+}
+
+.wh app-collapsible-section + app-collapsible-section {
+  margin-top: 10px;
+}
+
+.wh__field-with-hint {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.wh__field-with-hint > app-select-field {
+  flex: 1;
+  min-width: 0;
+}

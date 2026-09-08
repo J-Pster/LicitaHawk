@@ -1,0 +1,153 @@
+<div class="saved-tenders">
+  <app-page-header title="Licitações salvas" />
+
+  @if (errorMsg()) {
+    <div class="alert alert-error">{{ errorMsg() }}</div>
+  }
+
+  <section class="card panel-wide">
+    @if (loading()) {
+      <app-skeleton variant="table" [rows]="4" [columns]="7" />
+    } @else if (items().length === 0) {
+      <app-empty-state
+        title="Você ainda não salvou nenhuma licitação"
+        hint="Abra uma licitação na busca e clique em 'Salvar' para acompanhar o prazo aqui."
+      >
+        <a class="btn btn-outline btn-sm" routerLink="/app/buscar">Ir para a busca</a>
+      </app-empty-state>
+    } @else {
+      <div class="table-scroll" appDragScroll>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Objeto</th>
+              <th>Órgão</th>
+              <th>Modalidade</th>
+              <th>Valor estimado</th>
+              <th>Prazo</th>
+              <th>Salva em</th>
+              <th class="saved-tenders__sticky saved-tenders__sticky--head">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of items(); track item.pncp_control_number) {
+              <tr class="clickable-row" (click)="openTender(item.pncp_control_number)">
+                <td class="saved-tenders__objeto">
+                  <span class="text-truncate" [title]="item.snapshot.objeto">
+                    {{ item.snapshot.objeto }}
+                  </span>
+                  @if (item.note) {
+                    <span class="saved-tenders__note-text" [title]="item.note">{{ item.note }}</span>
+                  }
+                </td>
+                <td class="saved-tenders__org">
+                  <span class="text-truncate" [title]="item.snapshot.org_name">
+                    {{ item.snapshot.org_name }}
+                  </span>
+                  <span class="saved-tenders__org-uf">
+                    {{ item.snapshot.municipio ? item.snapshot.municipio + ' - ' : '' }}{{ item.snapshot.uf }}
+                  </span>
+                </td>
+                <td class="saved-tenders__nowrap" [title]="item.snapshot.modalidade">
+                  {{ item.snapshot.modalidade }}
+                </td>
+                <td class="saved-tenders__nowrap">
+                  {{ item.snapshot.valor_estimado | currency: 'BRL' : 'symbol' : '1.2-2' : 'pt-BR' }}
+                </td>
+                <td>
+                  @let prazo = prazoInfo(item.snapshot.data_encerramento_proposta);
+                  <app-status-badge [tone]="prazo.tone">{{ prazo.label }}</app-status-badge>
+                </td>
+                <td class="saved-tenders__nowrap">{{ item.created_at | date:'dd/MM/yyyy' }}</td>
+                <td class="saved-tenders__sticky">
+                  <div class="saved-tenders__actions">
+                  <a
+                    class="icon-btn icon-btn--sm icon-btn--bordered"
+                    [routerLink]="['/app/tenders', item.pncp_control_number]"
+                    (click)="$event.stopPropagation()"
+                    aria-label="Abrir licitação"
+                    title="Abrir licitação"
+                  >
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <line x1="4" y1="12" x2="19" y2="12" />
+                      <polyline points="13 6 19 12 13 18" />
+                    </svg>
+                  </a>
+                  <button
+                    type="button"
+                    class="icon-btn icon-btn--sm icon-btn--bordered"
+                    (click)="$event.stopPropagation(); startEditNote(item)"
+                    [attr.aria-label]="item.note ? 'Editar nota' : 'Adicionar nota'"
+                    [title]="item.note ? 'Editar nota' : 'Adicionar nota'"
+                  >
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="icon-btn icon-btn--sm icon-btn--bordered saved-tenders__remove"
+                    (click)="$event.stopPropagation(); askDelete(item)"
+                    aria-label="Remover das salvas"
+                    title="Remover das salvas"
+                  >
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <line x1="10" y1="11" x2="10" y2="17" />
+                      <line x1="14" y1="11" x2="14" y2="17" />
+                    </svg>
+                  </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</div>
+
+@if (editing(); as item) {
+  <app-modal-shell title="Nota da licitação" size="sm" (closed)="closeEditNote()">
+    <div class="form-group">
+      <label class="form-label" for="savedTenderNote">Nota pessoal</label>
+      <textarea
+        id="savedTenderNote"
+        class="form-input"
+        rows="4"
+        [maxlength]="maxNoteLength"
+        [ngModel]="editNote()"
+        (ngModelChange)="editNote.set($event)"
+        name="savedTenderNote"
+      ></textarea>
+      <p class="form-hint">{{ editNote().length }}/{{ maxNoteLength }} caracteres</p>
+    </div>
+    <div modalFooter>
+      <button type="button" class="btn btn-outline" (click)="closeEditNote()" [disabled]="savingEdit()">
+        Cancelar
+      </button>
+      <button type="button" class="btn btn-primary" (click)="confirmEditNote()" [disabled]="savingEdit()">
+        {{ savingEdit() ? 'Salvando...' : 'Salvar' }}
+      </button>
+    </div>
+  </app-modal-shell>
+}
+
+@if (deleting(); as item) {
+  <app-confirm-dialog
+    title="Remover licitação salva"
+    confirmLabel="Remover"
+    busyLabel="Removendo..."
+    [busy]="deleteBusy()"
+    (confirmed)="confirmDelete()"
+    (cancelled)="cancelDelete()"
+  >
+    <p>
+      <strong>{{ item.snapshot.objeto }}</strong> deixa de aparecer nesta lista. Não dá para
+      desfazer.
+    </p>
+  </app-confirm-dialog>
+}

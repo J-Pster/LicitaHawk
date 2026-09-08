@@ -1,0 +1,140 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "▶ Subir tudo (DynamoDB + backend + frontend)",
+      "detail": "Delega para a service platform: node .vscode/service-platform/svc.mjs start-profile dev --wait. Sobe o DynamoDB local (iniciando o Docker Desktop se preciso), depois o backend em :3577 e o frontend em :4471. Idempotente: se algo ja estiver no ar, nao duplica.",
+      "type": "shell",
+      "command": "node '${workspaceFolder}/.vscode/service-platform/svc.mjs' start-profile dev --wait",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": false, "clear": true },
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "◼ Parar tudo",
+      "detail": "Para todos os servicos registrados, inclusive o scheduler e os containers do DynamoDB.",
+      "type": "shell",
+      "command": "node '${workspaceFolder}/.vscode/service-platform/svc.mjs' stop all",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": false, "clear": true }
+    },
+    {
+      "label": "📊 Status dos servicos",
+      "detail": "Estado real, re-derivado do SO a cada chamada (porta TCP e containers), nao de bookkeeping interno. Mostra tambem se o servico ja esta saudavel de verdade, nao so escutando na porta.",
+      "type": "shell",
+      "command": "node '${workspaceFolder}/.vscode/service-platform/svc.mjs' status",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": false, "clear": true }
+    },
+    {
+      "label": "🗄 DynamoDB local (docker compose)",
+      "detail": "Sobe dynamodb-local (:8000) e dynamodb-admin (:8001). Inicia o Docker Desktop antes se ele estiver parado.",
+      "type": "shell",
+      "command": "node '${workspaceFolder}/.vscode/service-platform/svc.mjs' start dynamodb --wait",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": false, "clear": true }
+    },
+    {
+      "label": "🛠 Backend (:3577)",
+      "detail": "Backend Express + servidor MCP em tsx watch. Sobe o DynamoDB antes se ele nao estiver no ar. PORT e FRONTEND_ORIGIN vem do registro (services.json), nao do .env, porque o .env tem as portas historicas 3000/4200 que colidem com o outro produto desta maquina.",
+      "type": "shell",
+      "command": "node '${workspaceFolder}/.vscode/service-platform/svc.mjs' start backend --wait",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": false, "clear": true }
+    },
+    {
+      "label": "🖥 Frontend (:4471)",
+      "detail": "ng serve na porta 4471. O primeiro build demora: a porta abre bem antes de a aplicacao responder, por isso o status distingue 'rodando' de 'saudavel'.",
+      "type": "shell",
+      "command": "node '${workspaceFolder}/.vscode/service-platform/svc.mjs' start frontend --wait",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": false, "clear": true }
+    },
+    {
+      "label": "⏱ Scheduler de ingestao do PNCP",
+      "detail": "Ingestao periodica alimentando a base local. Opcional: so precisa rodar quando voce quer dado novo chegando sozinho.",
+      "type": "shell",
+      "command": "node '${workspaceFolder}/.vscode/service-platform/svc.mjs' start scheduler --wait",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": false, "clear": true }
+    },
+    {
+      "label": "🔄 Reiniciar backend",
+      "type": "shell",
+      "command": "node '${workspaceFolder}/.vscode/service-platform/svc.mjs' restart backend --wait",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": false, "clear": true }
+    },
+    {
+      "label": "🔄 Reiniciar frontend",
+      "type": "shell",
+      "command": "node '${workspaceFolder}/.vscode/service-platform/svc.mjs' restart frontend --wait",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": false, "clear": true }
+    },
+    {
+      "label": "📜 Logs do backend",
+      "type": "shell",
+      "command": "node '${workspaceFolder}/.vscode/service-platform/svc.mjs' logs backend --lines 120",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": true, "clear": true }
+    },
+    {
+      "label": "📜 Logs do frontend",
+      "type": "shell",
+      "command": "node '${workspaceFolder}/.vscode/service-platform/svc.mjs' logs frontend --lines 120",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": true, "clear": true }
+    },
+    {
+      "label": "🧱 Criar tabelas do DynamoDB local",
+      "detail": "Roda backend/scripts/create-tables.sh contra o DynamoDB local. Idempotente: tabela que ja existe e apenas reportada. Precisa do aws-cli instalado.",
+      "type": "shell",
+      "command": "node '${workspaceFolder}/.vscode/service-platform/svc.mjs' setup-tables",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": true, "clear": true }
+    },
+    {
+      "label": "🩺 Doctor (ferramentas necessarias)",
+      "detail": "Checagem somente leitura: node, npm, docker, aws-cli e se o daemon do Docker responde.",
+      "type": "shell",
+      "command": "node '${workspaceFolder}/.vscode/service-platform/svc.mjs' doctor",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": true, "clear": true }
+    },
+    {
+      "label": "🧪 Selftest do registro de servicos",
+      "detail": "Valida services.json: ids duplicados, dependencia inexistente, profile apontando para servico que nao existe, porta repetida entre dois servicos.",
+      "type": "shell",
+      "command": "node '${workspaceFolder}/.vscode/service-platform/svc.mjs' selftest",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": true, "clear": true }
+    },
+    {
+      "label": "✅ Testes do backend",
+      "detail": "npm test (vitest) dentro de backend/.",
+      "type": "shell",
+      "command": "npm test",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": true, "clear": true },
+      "group": { "kind": "test", "isDefault": true }
+    },
+    {
+      "label": "🔎 Typecheck do backend",
+      "type": "shell",
+      "command": "npx tsc --noEmit",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "problemMatcher": ["$tsc"],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": true, "clear": true }
+    },
+    {
+      "label": "📦 Build do frontend",
+      "type": "shell",
+      "command": "npx ng build",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "problemMatcher": ["$tsc"],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": true, "clear": true }
+    }
+  ]
+}

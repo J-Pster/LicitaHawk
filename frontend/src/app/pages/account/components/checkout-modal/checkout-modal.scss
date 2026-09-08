@@ -1,0 +1,32 @@
+:host {
+  display: contents;
+}
+
+.checkout-intro {
+  margin-bottom: 4px;
+}
+
+.pix-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  border-top: 1px solid var(--color-border);
+  padding-top: 20px;
+}
+
+.pix-block h3 {
+  font-size: 1rem;
+}
+
+.pix-qr {
+  width: 180px;
+  height: 180px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.pix-pending-note {
+  text-align: center;
+}

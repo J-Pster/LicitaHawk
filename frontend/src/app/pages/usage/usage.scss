@@ -1,0 +1,38 @@
+:host {
+  display: block;
+}
+
+.usage-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.usage-figures {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--heading);
+  margin-bottom: 8px;
+}
+
+.progress-track {
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-slate-100);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--brand-gold);
+  transition: width 0.3s ease;
+}
+
+.progress-fill--warning {
+  background: var(--color-warning);
+}
+
+.progress-fill--danger {
+  background: var(--color-danger);
+}

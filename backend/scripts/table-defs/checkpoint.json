@@ -1,0 +1,10 @@
+{
+  "TableName": "Checkpoint",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    { "AttributeName": "job_name", "AttributeType": "S" }
+  ],
+  "KeySchema": [
+    { "AttributeName": "job_name", "KeyType": "HASH" }
+  ]
+}

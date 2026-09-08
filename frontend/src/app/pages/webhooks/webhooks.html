@@ -1,0 +1,351 @@
+<div class="wh">
+  <app-page-header
+    title="Webhooks"
+    subtitle="Alertas entregues como POST assinado no seu endpoint. Para receber por email, use Alertas."
+  >
+    <a class="btn btn-outline btn-sm" routerLink="/app/alertas">Alertas por email</a>
+    <button type="button" class="btn btn-primary btn-sm" (click)="openCreateModal()">
+      Criar webhook
+    </button>
+  </app-page-header>
+
+  <!-- Endpoints -->
+  <section class="card panel-wide">
+    <div class="panel-head">
+      <h2>Seus endpoints</h2>
+      <span class="form-hint">Cada endpoint recebe um POST assinado por licitação que casar com o critério.</span>
+    </div>
+
+    @if (errorMsg()) {
+      <div class="alert alert-error">{{ errorMsg() }}</div>
+    }
+
+    @if (loading()) {
+      <app-skeleton variant="table" [rows]="3" [columns]="4" />
+    } @else if (webhooks().length === 0) {
+      <app-empty-state
+        title="Nenhum endpoint cadastrado"
+        hint="Um webhook é um critério de busca mais uma URL de destino. Se você prefere receber por email, crie um alerta."
+      >
+        <button type="button" class="btn btn-outline btn-sm" (click)="openCreateModal()">
+          Criar webhook
+        </button>
+      </app-empty-state>
+    } @else {
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Alerta</th>
+              <th>URL de destino</th>
+              <th>Estado</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (w of webhooks(); track w.id) {
+              <tr>
+                <td>{{ displayLabel(w) }}</td>
+                <td><span class="text-truncate wh__url" [title]="w.webhook_url">{{ w.webhook_url }}</span></td>
+                <td><app-status-badge [tone]="statusTone(w)">{{ statusLabel(w) }}</app-status-badge></td>
+                <td>
+                  <div class="col-actions">
+                    <button
+                      type="button"
+                      class="btn btn-outline btn-xs"
+                      [disabled]="busyId() === w.id"
+                      (click)="test(w)"
+                    >
+                      Testar
+                    </button>
+                    <button type="button" class="btn btn-outline btn-xs" (click)="startEdit(w)">
+                      Editar
+                    </button>
+                    <button type="button" class="btn btn-outline btn-xs" (click)="openDeliveries(w)">
+                      Ver entregas
+                    </button>
+                    @if (!w.active) {
+                      <button
+                        type="button"
+                        class="btn btn-outline btn-xs"
+                        [disabled]="busyId() === w.id"
+                        (click)="reactivate(w)"
+                      >
+                        Reativar
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      class="btn btn-danger-outline btn-xs"
+                      (click)="regenerating.set(w)"
+                    >
+                      Regenerar secret
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-danger-outline btn-xs"
+                      [disabled]="busyId() === w.id"
+                      (click)="askDelete(w)"
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  <!-- Contrato de entrega -->
+  <section class="card panel-wide">
+    <div class="panel-head"><h2>Contrato de entrega</h2></div>
+
+    <app-collapsible-section
+      heading="Requisição: método, cabeçalhos e payload"
+      meta="POST application/json"
+      [(open)]="contractOpen"
+    >
+      <p class="wh__text">
+        Toda vez que uma licitação nova casa com o filtro de um alerta, enviamos um
+        <strong>POST</strong> para a URL cadastrada, com o corpo em JSON. Responda
+        <strong>2xx</strong> para confirmar o recebimento: qualquer outra coisa conta como falha.
+        Redirecionamento não é seguido, então a URL cadastrada precisa ser a final.
+      </p>
+      <app-code-block label="Cabeçalhos" [code]="headersExample" />
+      <app-code-block label="Corpo (evento tender.matched)" [code]="payloadExample" />
+      <p class="form-hint">
+        Um disparo de teste traz os mesmos campos com <code>"test": true</code> e um tender fictício,
+        para você validar a integração sem esperar uma licitação real aparecer.
+      </p>
+    </app-collapsible-section>
+
+    <app-collapsible-section
+      heading="Validando a assinatura"
+      meta="HMAC SHA-256"
+      [(open)]="signatureOpen"
+    >
+      <p class="wh__text">
+        Cada entrega vai assinada no cabeçalho <code>X-LicitaHawk-Signature</code>, no formato
+        <code>sha256=&lt;hex&gt;</code>. A assinatura é o HMAC SHA-256 do <strong>corpo cru</strong>
+        usando o secret do endpoint como chave. Confira sempre antes de processar: sem isso,
+        qualquer um que descubra a sua URL consegue injetar eventos falsos.
+      </p>
+      <app-code-block label="Verificação (Node.js)" [code]="verifyExample" />
+      <p class="form-hint">
+        O secret é gerado no cadastro do alerta e nunca é devolvido pela API depois disso, nem aqui
+        nem em nenhuma resposta. Se você o perdeu, regenere: o valor novo aparece uma única vez, no
+        seu registro do alerta, e as entregas seguintes passam a usá-lo.
+      </p>
+    </app-collapsible-section>
+
+    <app-collapsible-section
+      heading="Reentrega, tempo limite e desativação automática"
+      meta="3 tentativas"
+      [(open)]="retryOpen"
+    >
+      <dl class="detail-list">
+        <dt>Tentativas</dt>
+        <dd>3 por evento, com espera de 0,5s, 1,5s e 4s entre elas.</dd>
+        <dt>Tempo limite</dt>
+        <dd>5 segundos por tentativa. Um endpoint lento conta como falha.</dd>
+        <dt>Idempotência</dt>
+        <dd>
+          Cada entrega leva um <code>Idempotency-Key</code> estável. Como a política é de pelo menos
+          uma entrega, o mesmo evento pode chegar duas vezes: guarde a chave e ignore repetição.
+        </dd>
+        <dt>Redirecionamento</dt>
+        <dd>Não seguimos 3xx. Cadastre a URL final.</dd>
+        <dt>Desativação automática</dt>
+        <dd>
+          Depois de 5 falhas consecutivas o endpoint é desativado para não seguir batendo em porta
+          fechada. Corrija o servidor e clique em Reativar: o contador volta a zero.
+        </dd>
+        <dt>Destinos bloqueados</dt>
+        <dd>
+          Endereços internos (loopback, rede privada, link-local) são recusados por proteção contra
+          SSRF. Em desenvolvimento, exponha seu servidor local por um túnel público.
+        </dd>
+      </dl>
+    </app-collapsible-section>
+  </section>
+</div>
+
+@if (deliveriesFor(); as w) {
+  <app-modal-shell [title]="'Entregas de ' + displayLabel(w)" size="lg" (closed)="closeDeliveries()">
+    <p class="form-hint">
+      Últimas tentativas registradas para este endpoint. A lista se atualiza sozinha enquanto esta
+      janela estiver aberta.
+    </p>
+
+    @if (loadingDeliveries() && deliveries().length === 0) {
+      <app-skeleton variant="table" [rows]="4" [columns]="4" />
+    } @else if (deliveries().length === 0) {
+      <app-empty-state
+        title="Nenhuma entrega registrada"
+        hint="Dispare um teste para ver o resultado aparecer aqui."
+      />
+    } @else {
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Quando</th>
+              <th>Resultado</th>
+              <th>HTTP</th>
+              <th>Tentativas</th>
+              <th>Erro</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (d of deliveries(); track d.timestamp) {
+              <tr>
+                <td>{{ d.timestamp | date: 'dd/MM/yyyy HH:mm:ss' }}</td>
+                <td>
+                  <app-status-badge [tone]="d.success ? 'success' : 'danger'">
+                    {{ d.success ? 'Entregue' : 'Falhou' }}
+                  </app-status-badge>
+                </td>
+                <td>{{ d.status_code ?? '-' }}</td>
+                <td>{{ d.attempts }}</td>
+                <td><span class="text-truncate" [title]="d.error ?? ''">{{ d.error ?? '-' }}</span></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <div modalFooter>
+      <button type="button" class="btn btn-outline" (click)="closeDeliveries()">Fechar</button>
+    </div>
+  </app-modal-shell>
+}
+
+@if (regenerating(); as w) {
+  <app-confirm-dialog
+    title="Regenerar o secret"
+    confirmLabel="Regenerar"
+    busyLabel="Regenerando..."
+    [busy]="regenerateBusy()"
+    (confirmed)="confirmRegenerate()"
+    (cancelled)="regenerating.set(null)"
+  >
+    <p>
+      O secret atual de <strong>{{ displayLabel(w) }}</strong> para de valer na hora. Toda entrega
+      seguinte vai assinada com o novo, então o seu servidor rejeita as mensagens até você atualizar
+      o segredo lá.
+    </p>
+  </app-confirm-dialog>
+}
+
+@if (showCreateModal()) {
+  <app-modal-shell title="Criar webhook" (closed)="closeCreateModal()">
+    <app-text-field
+      label="Nome (opcional)"
+      placeholder="ex.: Integração ERP"
+      [ngModel]="createForm().name"
+      (ngModelChange)="updateCreateField('name', $event)"
+      name="whName"
+    />
+    <div class="form-row">
+      <app-select-field
+        label="UF"
+        placeholder="Selecione"
+        [required]="true"
+        [options]="ufOptions"
+        [ngModel]="createForm().uf"
+        (ngModelChange)="updateCreateField('uf', $event)"
+        name="whUf"
+      />
+      <div class="wh__field-with-hint">
+        <app-select-field
+          label="Modalidade"
+          placeholder="Selecione"
+          [required]="true"
+          [options]="modalidadeOptions"
+          [ngModel]="createForm().modalidade"
+          (ngModelChange)="updateCreateField('modalidade', $event)"
+          name="whModalidade"
+        />
+        <app-help-tooltip
+          ariaLabel="Por que a modalidade é um select"
+          text="A checagem compara pelo nome oficial da modalidade no PNCP, letra por letra -- por isso é um select, não texto livre: assim o critério sempre casa com o valor real."
+        />
+      </div>
+    </div>
+    <app-text-field
+      label="Palavra-chave (opcional)"
+      placeholder="ex.: informática, merenda escolar"
+      hint="Deixe em branco para receber tudo da UF e modalidade escolhidas."
+      [ngModel]="createForm().keyword"
+      (ngModelChange)="updateCreateField('keyword', $event)"
+      name="whKeyword"
+    />
+    <app-text-field
+      label="URL de destino"
+      type="url"
+      placeholder="https://seu-servico.com/webhook"
+      [ngModel]="createForm().webhookUrl"
+      (ngModelChange)="updateCreateField('webhookUrl', $event)"
+      name="whUrl"
+    />
+    @if (createError()) {
+      <p class="form-error">{{ createError() }}</p>
+    }
+    <div modalFooter>
+      <button type="button" class="btn btn-outline" (click)="closeCreateModal()" [disabled]="creating()">
+        Cancelar
+      </button>
+      <button type="button" class="btn btn-primary" (click)="submitCreate()" [disabled]="creating()">
+        {{ creating() ? 'Criando...' : 'Criar' }}
+      </button>
+    </div>
+  </app-modal-shell>
+}
+
+@if (editing(); as w) {
+  <app-modal-shell title="Editar webhook" size="sm" (closed)="closeEdit()">
+    <p class="form-hint">
+      UF, modalidade e palavra-chave não podem ser alterados: exclua e crie um novo webhook se
+      precisar mudar o critério.
+    </p>
+    <app-text-field
+      label="Nome"
+      [ngModel]="editName()"
+      (ngModelChange)="editName.set($event)"
+      name="whEditName"
+    />
+    <app-text-field
+      label="URL de destino"
+      type="url"
+      [error]="editError()"
+      [ngModel]="editUrl()"
+      (ngModelChange)="editUrl.set($event)"
+      name="whEditUrl"
+    />
+    <div modalFooter>
+      <button type="button" class="btn btn-outline" (click)="closeEdit()" [disabled]="savingEdit()">
+        Cancelar
+      </button>
+      <button type="button" class="btn btn-primary" (click)="confirmEdit()" [disabled]="savingEdit()">
+        {{ savingEdit() ? 'Salvando...' : 'Salvar' }}
+      </button>
+    </div>
+  </app-modal-shell>
+}
+
+@if (deleting(); as w) {
+  <app-confirm-dialog
+    title="Excluir webhook"
+    confirmLabel="Excluir"
+    busyLabel="Excluindo..."
+    [busy]="deleteBusy()"
+    (confirmed)="confirmDelete()"
+    (cancelled)="cancelDelete()"
+  >
+    <p>O endpoint <strong>{{ displayLabel(w) }}</strong> para de receber entregas na hora. Não dá para desfazer.</p>
+  </app-confirm-dialog>
+}

@@ -1,0 +1,207 @@
+<div class="kit">
+  <app-page-header
+    title="UI Kit"
+    subtitle="Todas as peças compartilhadas em uso real. Antes de escrever um componente novo, confira se ele já está aqui."
+  >
+    <button type="button" class="btn btn-outline btn-sm" (click)="modalOpen.set(true)">
+      Abrir modal de exemplo
+    </button>
+  </app-page-header>
+
+  <!-- Cores -->
+  <section class="card panel-wide">
+    <div class="panel-head">
+      <h2>Paleta</h2>
+      <span class="form-hint">Navy = chrome e interação. Dourado = ação primária.</span>
+    </div>
+    <div class="kit__swatches">
+      <div class="kit__swatch" style="background: var(--color-navy-900); color: #fff">navy-900</div>
+      <div class="kit__swatch" style="background: var(--color-navy-700); color: #fff">navy-700</div>
+      <div class="kit__swatch" style="background: var(--color-navy-600); color: #fff">navy-600</div>
+      <div class="kit__swatch" style="background: var(--color-gold-500); color: var(--color-navy-900)">gold-500</div>
+      <div class="kit__swatch" style="background: var(--color-gold-400); color: var(--color-navy-900)">gold-400</div>
+      <div class="kit__swatch" style="background: var(--color-gold-100); color: var(--color-navy-900)">gold-100</div>
+      <div class="kit__swatch kit__swatch--bordered" style="background: var(--surface); color: var(--text)">surface</div>
+      <div class="kit__swatch kit__swatch--bordered" style="background: var(--panel-muted); color: var(--text)">panel-muted</div>
+    </div>
+  </section>
+
+  <!-- Botoes -->
+  <section class="card panel-wide">
+    <div class="panel-head"><h2>Botões</h2></div>
+    <div class="kit__row">
+      <button type="button" class="btn btn-primary">Primário</button>
+      <button type="button" class="btn btn-secondary">Secundário</button>
+      <button type="button" class="btn btn-outline">Contorno</button>
+      <button type="button" class="btn btn-ghost">Fantasma</button>
+      <button type="button" class="btn btn-danger">Destrutivo</button>
+      <button type="button" class="btn btn-primary" disabled>Desabilitado</button>
+    </div>
+    <div class="kit__row">
+      <button type="button" class="btn btn-primary btn-sm">Pequeno</button>
+      <button type="button" class="btn btn-outline btn-xs">Extra pequeno</button>
+      <button type="button" class="btn-link">Link de ação</button>
+      <button type="button" class="icon-btn icon-btn--bordered" aria-label="Exemplo">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- Campos -->
+  <section class="card panel-wide">
+    <div class="panel-head">
+      <h2>Campos</h2>
+      <app-help-tooltip text="Todo formulário usa estes componentes: eles já cuidam de rótulo, id, aria-describedby e estado de erro." />
+    </div>
+
+    <div class="form-row">
+      <app-text-field
+        label="Palavra-chave"
+        placeholder="ex.: merenda escolar"
+        hint="Busca no objeto e no órgão da licitação."
+        [clearable]="true"
+        [ngModel]="keyword()"
+        (ngModelChange)="keyword.set($event)"
+        name="kitKeyword"
+      />
+      <app-text-field
+        label="CNPJ"
+        placeholder="00.000.000/0000-00"
+        error="CNPJ inválido."
+        [required]="true"
+        name="kitCnpj"
+        ngModel
+      />
+    </div>
+
+    <div class="form-row">
+      <app-select-field
+        label="Ordenar por"
+        [options]="sortOptions"
+        [ngModel]="sort()"
+        (ngModelChange)="sort.set($event)"
+        name="kitSort"
+      />
+      <div class="form-group">
+        <span class="form-label">UF (seleção múltipla)</span>
+        <app-multi-select
+          [options]="ufOptions"
+          [selected]="selectedUfs()"
+          placeholder="Todas as UFs"
+          singularLabel="UF"
+          pluralLabel="UFs"
+          (selectionChange)="selectedUfs.set($event)"
+        />
+        <span class="form-hint">Selecionadas: {{ selectedUfs().join(', ') || 'nenhuma' }}</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <span class="form-label">Órgão (busca com sugestões)</span>
+      <app-search-select
+        placeholder="Buscar órgão por nome ou CNPJ"
+        [searchFn]="buscarOrgaos"
+        createLabel="Cadastrar órgão"
+        (selectedChange)="orgao.set($event)"
+        (cleared)="orgao.set(null)"
+      />
+      <span class="form-hint">
+        {{ orgao() ? 'Selecionado: ' + orgao()!.label : 'Digite ao menos 2 caracteres (ex.: "prefeitura").' }}
+      </span>
+    </div>
+  </section>
+
+  <!-- Feedback -->
+  <section class="card panel-wide">
+    <div class="panel-head"><h2>Feedback</h2></div>
+
+    <div class="kit__row">
+      <button type="button" class="btn btn-outline btn-sm" (click)="showToast('success')">Toast sucesso</button>
+      <button type="button" class="btn btn-outline btn-sm" (click)="showToast('error')">Toast erro</button>
+      <button type="button" class="btn btn-outline btn-sm" (click)="showToast('warning')">Toast aviso</button>
+      <button type="button" class="btn btn-outline btn-sm" (click)="showToast('info')">Toast info</button>
+      <button type="button" class="btn btn-danger-outline btn-sm" (click)="confirmOpen.set(true)">
+        Confirmação destrutiva
+      </button>
+    </div>
+
+    <div class="kit__row">
+      <app-status-badge tone="success">Ativa</app-status-badge>
+      <app-status-badge tone="info">Em andamento</app-status-badge>
+      <app-status-badge tone="warning">Pendente</app-status-badge>
+      <app-status-badge tone="danger">Falhou</app-status-badge>
+      <app-status-badge tone="neutral">Encerrada</app-status-badge>
+      <span class="badge badge-free">Free</span>
+      <span class="badge badge-starter">Starter</span>
+      <span class="badge badge-pro">Pro</span>
+      <span class="chip">Chip neutro</span>
+    </div>
+
+    <div class="alert alert-success">Operação concluída.</div>
+    <div class="alert alert-error">Não foi possível concluir.</div>
+    <div class="alert alert-warning">Você está perto do limite do plano.</div>
+    <div class="alert alert-info">A ingestão do PNCP roda de hora em hora.</div>
+  </section>
+
+  <!-- Estados -->
+  <section class="card panel-wide">
+    <div class="panel-head"><h2>Estados de carregamento e vazio</h2></div>
+    <app-skeleton variant="table" [rows]="3" [columns]="5" />
+    <app-empty-state
+      title="Nenhuma licitação encontrada"
+      hint="Tente ampliar o período, remover a faixa de valor ou trocar a palavra-chave."
+    >
+      <button type="button" class="btn btn-outline btn-sm">Limpar filtros</button>
+    </app-empty-state>
+  </section>
+
+  <!-- Secao expansivel -->
+  <section class="card panel-wide">
+    <div class="panel-head"><h2>Seção expansível</h2></div>
+    <app-collapsible-section
+      heading="Como a paginação funciona"
+      meta="opcional"
+      [(open)]="sectionOpen"
+    >
+      <p class="form-hint">
+        Cada página traz um número fixo de resultados já filtrados, e "Carregar mais" traz outra
+        página do mesmo tamanho. Vale para qualquer combinação de filtros, inclusive várias UFs e
+        modalidades na mesma busca.
+      </p>
+    </app-collapsible-section>
+  </section>
+</div>
+
+@if (modalOpen()) {
+  <app-modal-shell title="Modal de exemplo" (closed)="modalOpen.set(false)">
+    <p>
+      Cabeçalho fixo, corpo rolando sozinho e rodapé fixo. Escape fecha, clique fora fecha, o foco
+      fica preso dentro do diálogo (tudo nativo do elemento <code>&lt;dialog&gt;</code>).
+    </p>
+    <app-text-field label="Nome do filtro" placeholder="ex.: Informática em GO" name="kitModalName" ngModel />
+    <p class="form-hint">
+      Role para ver o corpo rolar sem levar o rodapé junto.
+    </p>
+    <app-skeleton variant="lines" [rows]="12" />
+
+    <div modalFooter>
+      <button type="button" class="btn btn-outline" (click)="modalOpen.set(false)">Cancelar</button>
+      <button type="button" class="btn btn-primary" (click)="modalOpen.set(false)">Salvar</button>
+    </div>
+  </app-modal-shell>
+}
+
+@if (confirmOpen()) {
+  <app-confirm-dialog
+    title="Remover filtro salvo"
+    confirmLabel="Remover"
+    busyLabel="Removendo..."
+    [busy]="confirmBusy()"
+    (confirmed)="confirmDelete()"
+    (cancelled)="confirmOpen.set(false)"
+  >
+    <p>O filtro para de gerar alertas na hora. Não dá para desfazer.</p>
+  </app-confirm-dialog>
+}

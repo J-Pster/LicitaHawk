@@ -1,0 +1,105 @@
+:host {
+  display: block;
+}
+
+.chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.grid-line {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.baseline {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.axis-label {
+  font-size: 8px;
+  fill: var(--text-fine);
+  font-family: var(--font-body);
+}
+
+.axis-label-y {
+  font-size: 8px;
+}
+
+/* Cores de série categóricas: não há token dedicado a gráfico no design system, então reusam a
+   paleta bruta já existente (mesma escolha do componente que este substitui). */
+.bar-api {
+  fill: var(--color-navy-700);
+  rx: 1;
+}
+
+.bar-mcp {
+  fill: var(--color-gold-500);
+  rx: 1;
+}
+
+.bar-ui {
+  fill: var(--color-teal-600);
+  rx: 1;
+}
+
+.bar-webhook {
+  fill: var(--color-terracotta-500);
+  rx: 1;
+}
+
+.bar-email {
+  fill: var(--color-navy-600);
+  rx: 1;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.swatch-api {
+  background: var(--color-navy-700);
+}
+
+.swatch-mcp {
+  background: var(--color-gold-500);
+}
+
+.swatch-ui {
+  background: var(--color-teal-600);
+}
+
+.swatch-webhook {
+  background: var(--color-terracotta-500);
+}
+
+.swatch-email {
+  background: var(--color-navy-600);
+}

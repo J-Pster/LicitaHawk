@@ -1,0 +1,10 @@
+{
+  "TableName": "RateLimitMetrics",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    { "AttributeName": "metric_key", "AttributeType": "S" }
+  ],
+  "KeySchema": [
+    { "AttributeName": "metric_key", "KeyType": "HASH" }
+  ]
+}

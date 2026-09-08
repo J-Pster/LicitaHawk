@@ -1,0 +1,97 @@
+<div class="page-shell">
+  <header class="topbar">
+    <a class="brand" routerLink="/app/dashboard">
+      <span class="brand-mark">LH</span>
+      <span>LicitaHawk</span>
+    </a>
+    <a class="btn btn-outline btn-sm" routerLink="/app/dashboard">Voltar ao painel</a>
+  </header>
+
+  <main class="container payment-main">
+    <h1>Fazer upgrade de plano</h1>
+    <p class="subtitle">Escolha o plano e finalize o pagamento na fatura hospedada pelo Asaas.</p>
+
+    @if (!checkoutResult()) {
+      <div class="plan-picker">
+        @for (plan of planList; track plan.key) {
+          <button
+            type="button"
+            class="plan-option"
+            [class.active]="selectedPlan() === plan.key"
+            (click)="selectPlan(plan.key)"
+          >
+            <span class="plan-option-name">{{ plan.label }}</span>
+            <span class="plan-option-price">{{ plan.price }}</span>
+          </button>
+        }
+      </div>
+
+      @if (errorMsg()) {
+        <div class="alert alert-error">{{ errorMsg() }}</div>
+      }
+
+      <form class="card checkout-form" (ngSubmit)="onSubmit()">
+        <div class="form-group">
+          <label class="form-label" for="name">Nome completo ou razão social</label>
+          <input
+            id="name"
+            class="form-input"
+            type="text"
+            name="name"
+            autocomplete="name"
+            [(ngModel)]="name"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cpfCnpj">CPF ou CNPJ</label>
+          <input
+            id="cpfCnpj"
+            class="form-input"
+            type="text"
+            name="cpfCnpj"
+            placeholder="Somente números ou com pontuação"
+            autocomplete="off"
+            [(ngModel)]="cpfCnpj"
+            required
+          />
+          <span class="form-hint">Usado para emitir a cobrança no Asaas.</span>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit" [disabled]="loading()">
+          {{ loading() ? 'Gerando cobrança...' : 'Gerar cobrança do plano ' + planDetails[selectedPlan()].label }}
+        </button>
+      </form>
+    }
+
+    @if (checkoutResult(); as result) {
+      <div class="card result-card">
+        <div class="alert alert-success">
+          Cobrança do plano {{ planDetails[result.plan].label }} gerada com sucesso.
+        </div>
+
+        <a class="btn btn-primary btn-block" [href]="result.checkout_url" target="_blank" rel="noopener">
+          Ir para pagamento (boleto, cartão ou Pix)
+        </a>
+
+        @if (result.pix_qr_code) {
+          <div class="pix-block">
+            <h3>Ou pague com Pix</h3>
+            <img
+              class="pix-qr"
+              [src]="'data:image/png;base64,' + result.pix_qr_code.encoded_image"
+              alt="QR code Pix"
+            />
+            <p class="form-hint pix-copy">{{ result.pix_qr_code.payload }}</p>
+          </div>
+        }
+
+        @if (polling()) {
+          <p class="polling-note">
+            Aguardando confirmação do pagamento... você será redirecionado automaticamente assim
+            que a cobrança for confirmada.
+          </p>
+        }
+      </div>
+    }
+  </main>
+</div>

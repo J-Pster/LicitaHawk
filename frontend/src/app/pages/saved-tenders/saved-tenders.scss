@@ -1,0 +1,125 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.saved-tenders {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* O objeto de uma licitacao passa de 200 caracteres com frequencia. Sem teto de largura ele
+   estica a linha por uma dezena de linhas de texto; aqui ele fica numa linha curta e o texto
+   completo aparece no hover (title) e na tela de detalhe. */
+.saved-tenders__objeto {
+  max-width: 240px;
+}
+
+.saved-tenders__objeto .text-truncate {
+  max-width: 100%;
+}
+
+.saved-tenders__org {
+  max-width: 165px;
+}
+
+.saved-tenders__org .text-truncate {
+  max-width: 100%;
+}
+
+/* Municipio e UF como segunda linha do orgao: sao atributo dele, nao coluna propria. */
+.saved-tenders__org-uf {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Colunas curtas nunca quebram em duas linhas: uma data ou um valor partido ao meio parece bug. */
+.saved-tenders__nowrap {
+  white-space: nowrap;
+}
+
+/* A nota mora embaixo do objeto: e onde ela e lida junto com aquilo que a pessoa anotou. */
+.saved-tenders__note-text {
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.saved-tenders__no-note {
+  font-size: 0.8rem;
+  color: var(--text-fine);
+}
+
+/* Acoes lado a lado: empilhadas verticalmente elas dobravam a altura da linha. */
+.saved-tenders .col-actions {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+/* "sem nota" e' rotulo de duas palavras: quebrar no meio parece defeito. */
+.saved-tenders__no-note {
+  white-space: nowrap;
+}
+
+/*
+ * Coluna de acoes ancorada na direita: com a tabela rolando na horizontal, as acoes seriam a
+ * primeira coisa a sair da tela, que e justamente o que a pessoa veio fazer. `position: sticky`
+ * mantem a coluna parada enquanto o resto desliza por baixo.
+ *
+ * O fundo opaco nao e decoracao: sem ele o conteudo rolando apareceria atraves da celula fixa.
+ * Por isso tambem repetimos o fundo no hover da linha, senao a coluna fixa seria a unica parte da
+ * linha que nao acompanha o realce. A separacao e uma borda de 1px, a mesma do resto da tabela --
+ * nao sombra, que sujava a leitura das colunas vizinhas.
+ */
+.saved-tenders__sticky {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: var(--surface);
+  border-left: 1px solid var(--color-border);
+}
+
+.saved-tenders__sticky--head {
+  background: var(--surface);
+}
+
+.data-table tbody tr.clickable-row:hover .saved-tenders__sticky {
+  background: color-mix(in srgb, var(--hover-bg) 100%, var(--surface));
+}
+
+/*
+ * O flex fica AQUI, num wrapper dentro da celula, e nao no proprio td (que e o que a classe
+ * global `.col-actions` faria). Um td com display:flex deixa de ser table-cell e sai do
+ * algoritmo de tabela: para de casar com o cabecalho e de acompanhar a altura da linha quando
+ * outra coluna cresce.
+ */
+.saved-tenders__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+/* Acao destrutiva so ganha cor no hover: vermelho permanente numa lista inteira vira ruido. */
+.saved-tenders__remove:hover:not(:disabled) {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+/* Arrastar para rolar: o cursor precisa dizer que da para pegar a tabela. */
+.saved-tenders .table-scroll.can-drag-scroll {
+  cursor: grab;
+}
+
+.saved-tenders .table-scroll.is-drag-scrolling {
+  cursor: grabbing;
+  user-select: none;
+}

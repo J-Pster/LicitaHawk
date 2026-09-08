@@ -1,0 +1,64 @@
+{
+  "folders": [
+    {
+      "path": ".",
+      "name": "LicitaHawk"
+    },
+    {
+      "path": "backend",
+      "name": "backend"
+    },
+    {
+      "path": "frontend",
+      "name": "frontend"
+    }
+  ],
+  "settings": {
+    "git.autoRepositoryDetection": "subFolders",
+    "git.autorefresh": true,
+    "git.openRepositoryInParentFolders": "never",
+    "npm.autoDetect": "off",
+    "typescript.disableAutomaticTypeAcquisition": true,
+    "typescript.tsserver.maxTsServerMemory": 4096,
+    "search.followSymlinks": false,
+    "files.watcherExclude": {
+      "**/.git/objects/**": true,
+      "**/.git/subtree-cache/**": true,
+      "**/node_modules/**": true,
+      "**/dist/**": true,
+      "**/.angular/**": true,
+      "**/coverage/**": true,
+      "**/.omc/**": true,
+      "**/.vscode/service-platform/logs/**": true,
+      "**/.vscode/service-platform/run/**": true
+    },
+    "search.exclude": {
+      "**/node_modules/**": true,
+      "**/dist/**": true,
+      "**/.angular/**": true,
+      "**/coverage/**": true,
+      "**/.vscode/service-platform/logs/**": true,
+      "**/.vscode/service-platform/run/**": true
+    },
+    "files.exclude": {
+      "**/.DS_Store": true,
+      "backend": true,
+      "frontend": true
+    },
+    "search.useIgnoreFiles": true,
+    "search.useGlobalIgnoreFiles": true,
+    "files.eol": "\n",
+    "editor.formatOnSave": false,
+    "terminal.integrated.defaultProfile.windows": "PowerShell 7",
+    "terminal.integrated.profiles.windows": {
+      "PowerShell 7": {
+        "path": "${env:ProgramFiles}\\PowerShell\\7\\pwsh.exe",
+        "icon": "terminal-powershell",
+        "args": ["-NoLogo", "-ExecutionPolicy", "Bypass"]
+      }
+    }
+  },
+  "extensions": {
+    "recommendations": ["angular.ng-template", "esbenp.prettier-vscode", "ms-azuretools.vscode-docker"]
+  }
+}

@@ -1,0 +1,1622 @@
+openapi: 3.0.3
+info:
+  title: LicitaHawk API
+  description: >
+    API REST sobre dados oficiais de licitacoes do PNCP (Portal Nacional de Contratacoes
+    Publicas). Busca normalizada de editais + filtros salvos com alerta por webhook.
+
+
+    **Rate limiting:** alem do teto MENSAL do plano (`requestsPerMonth`, aplicado por
+    `authenticate`), toda rota autenticada tambem aplica um limite POR MINUTO
+    (Free 30/min, Starter 180/min, Pro 600/min) pra proteger o servico contra rajada de um
+    unico cliente. Os headers `X-RateLimit-Limit`/`X-RateLimit-Remaining` sao retornados em
+    toda resposta autenticada; estourar o limite responde `429` com `code: RATE_LIMITED` e
+    header `Retry-After`.
+
+
+    **Cache:** `GET /v1/tenders`, `GET /v1/tenders/{id}` e `GET /v1/orgaos/{cnpj}/tenders`
+    tem cache de resposta de 30s (TTL curto, compartilhado entre clientes -- dado de tender
+    nao e customer-especifico). O header `X-Cache: HIT|MISS` indica se a resposta veio do
+    cache.
+
+
+    **Formato de erro:** toda resposta de erro segue `{ "error": { "code": string, "message":
+    string } }`. `code` e' estavel e legivel por maquina (ex.: `VALIDATION_ERROR`,
+    `NOT_FOUND`, `RATE_LIMITED`, `PLAN_LIMIT_EXCEEDED`, `UNAUTHORIZED`, `INTERNAL_ERROR`) --
+    prefira fazer switch nele em vez de parsear `message` (em portugues, pode mudar).
+  version: "0.9.0"
+servers:
+  - url: http://localhost:3000
+    description: Local (Fases 1-6)
+security:
+  - ApiKeyAuth: []
+paths:
+  /health:
+    get:
+      summary: Status do servico (sem autenticacao)
+      description: >
+        Inclui versao, uptime, Node version e um check de conectividade com o DynamoDB.
+        Responde 503 (status "degraded") se a dependencia estiver fora do ar.
+      security: []
+      responses:
+        "200":
+          description: Servico saudavel
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthStatus" }
+        "503":
+          description: Dependencia (DynamoDB) indisponivel
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthStatus" }
+
+  /v1/tenders:
+    get:
+      summary: Busca tenders (contratacoes) por uf e/ou modalidade
+      description: >
+        Exige 'uf', 'modalidade', ou OS DOIS JUNTOS (busca sempre via GSI, nunca full scan).
+        Combinar os dois usa um indice de chave composta (uf#modalidade) e responde
+        "estas modalidades DENTRO destas UFs". Aceita ate 5 valores separados por virgula em cada
+        um (ex. `uf=GO,SP&modalidade=Pregão - Eletrônico`), com teto de 12 pares na combinacao.
+
+
+        Paginacao: `limit` define o tamanho da pagina (padrao 20) e a pagina vem CHEIA -- os
+        filtros aplicados em memoria (keyword, faixa de valor, municipio, situacao) nao "esvaziam"
+        a pagina, porque a busca continua lendo o indice ate juntar `limit` resultados de verdade.
+        `next_cursor` funciona em QUALQUER combinacao de filtros, inclusive multi-valor.
+        Uma pagina so vem com menos de `limit` itens quando os dados acabaram (`has_more: false`)
+        ou quando o teto de leitura por requisicao foi atingido (`partial: true`, com
+        `next_cursor` presente para continuar).
+      parameters:
+        - name: uf
+          in: query
+          description: Sigla de 2 letras, ou lista separada por virgula (max 5). Pode ser combinada com 'modalidade'.
+          schema: { type: string, example: "GO,SP" }
+        - name: modalidade
+          in: query
+          description: >
+            Nome da modalidade exatamente como o PNCP publica, ou lista separada por virgula (max 5).
+            Validado contra o dominio oficial: um valor fora dele e' 400 com a lista de valores
+            aceitos, em vez de 200 com lista vazia. Pode ser combinada com 'uf'.
+          schema: { type: string, example: "Pregão - Eletrônico" }
+        - name: keyword
+          in: query
+          schema: { type: string, example: software }
+        - name: municipio
+          in: query
+          description: Nome do municipio. Casa por trecho, ignorando acento e caixa ("goiania" acha "Goiânia").
+          schema: { type: string, example: "Goiania" }
+        - name: situacao
+          in: query
+          description: >
+            Situacao da contratacao, ou lista separada por virgula (max 5). Casa por trecho,
+            ignorando acento e caixa ("divulgada" acha "Divulgada no PNCP").
+          schema: { type: string, example: "Divulgada" }
+        - name: valorMin
+          in: query
+          description: Filtra por valor_estimado >= valorMin.
+          schema: { type: number, minimum: 0 }
+        - name: valorMax
+          in: query
+          description: Filtra por valor_estimado <= valorMax.
+          schema: { type: number, minimum: 0 }
+        - name: dataInicial
+          in: query
+          description: ISO 8601. Deve ser informado JUNTO com dataFinal (um sem o outro e' 400).
+          schema: { type: string, example: "2026-08-01T00:00:00" }
+        - name: dataFinal
+          in: query
+          schema: { type: string, example: "2026-09-06T23:59:59" }
+        - name: sort
+          in: query
+          description: Ordena por data_publicacao. 'desc' (padrao, mais recente primeiro) ou 'asc'.
+          schema: { type: string, enum: [asc, desc], default: desc }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+        - name: cursor
+          in: query
+          description: next_cursor retornado pela pagina anterior. Suportado em qualquer combinacao de filtros.
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Cache: { schema: { type: string, enum: [HIT, MISS] } }
+            X-RateLimit-Limit: { schema: { type: integer } }
+            X-RateLimit-Remaining: { schema: { type: integer } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Tender" }
+                  next_cursor: { type: string }
+                  has_more:
+                    type: boolean
+                    description: Existe (ou pode existir) mais resultado alem desta pagina. Equivale a "next_cursor veio preenchido".
+                  partial:
+                    type: boolean
+                    description: >
+                      A pagina veio com menos de 'limit' itens porque o teto de leitura por
+                      requisicao foi atingido, nao porque os dados acabaram. Continue com
+                      'next_cursor'.
+        "400":
+          description: parametros invalidos (nem uf nem modalidade informados, uf desconhecida, modalidade fora do dominio oficial do PNCP, combinacao uf x modalidade acima de 12 pares, limit fora de faixa, dataInicial sem dataFinal, valorMin > valorMax, cursor invalido, etc.)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: API key ausente ou invalida
+        "429":
+          description: limite mensal do plano OU limite por minuto excedido (ver "code" no corpo)
+
+  /v1/tenders/{id}:
+    get:
+      summary: Detalhe COMPLETO de um tender por pncp_control_number
+      description: >
+        Devolve tudo que o PNCP publica sobre a contratacao, nao so o recorte indexado para busca.
+        Alem dos campos do Tender vem `detail`, com os dados completos da compra (`detail.compra`,
+        payload cru do PNCP), os itens com valor unitario (`detail.itens`), o resultado de cada item
+        quando ja houve homologacao (`detail.itens[].resultados`, com fornecedor vencedor, valor
+        homologado e data), os documentos para download (`detail.documentos`) e o historico de
+        alteracoes (`detail.historico`).
+
+
+        O detalhe e buscado no PNCP na primeira consulta e persistido; as seguintes vem do cache,
+        revalidado assim que a contratacao muda no PNCP. Use `?refresh=1` para forcar a rebusca.
+
+
+        Degradacao: o PNCP falha de forma intermitente. Quando uma secao nao vem, ela chega vazia e
+        o nome dela aparece em `detail.secoes_indisponiveis`; o resto do detalhe continua valido. Se
+        a propria compra nao vier, `detail_error` explica e `detail` traz a ultima versao conhecida
+        (ou null, se nunca foi buscada).
+      x-aviso-encoding: >
+        ATENCAO: pncp_control_number sempre contem uma barra literal (formato
+        "{cnpj}-{sequencial}/{ano}", ex. "07547821000191-1-000084/2026"). O cliente PRECISA
+        url-encodar o id (barra -> %2F) ao montar o path, senao o Express interpreta a barra
+        como separador de rota e responde 404 "Cannot GET". Bibliotecas HTTP padrao fazem isso
+        automaticamente via encodeURIComponent(id); só é um problema ao montar a URL manualmente.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "pncp_control_number, url-encoded (barra -> %2F)"
+          schema: { type: string, example: "07547821000191-1-000084%2F2026" }
+        - name: refresh
+          in: query
+          required: false
+          description: "1 para ignorar o cache e rebuscar no PNCP agora."
+          schema: { type: string, enum: ["1"] }
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Cache: { schema: { type: string, enum: [HIT, MISS] } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: "#/components/schemas/Tender"
+                      - type: object
+                        properties:
+                          detail:
+                            type: object
+                            nullable: true
+                            description: >
+                              Dados completos vindos do PNCP. null quando a contratacao nunca pode
+                              ser detalhada (numero de controle fora do padrao do PNCP).
+                            properties:
+                              fetched_at: { type: string, format: date-time }
+                              source_updated_at: { type: string }
+                              compra:
+                                type: object
+                                description: Payload cru do PNCP para a contratacao.
+                                additionalProperties: true
+                              itens:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    numero: { type: integer }
+                                    descricao: { type: string }
+                                    quantidade: { type: number }
+                                    unidade_medida: { type: string }
+                                    valor_unitario_estimado: { type: number }
+                                    valor_total: { type: number }
+                                    material_ou_servico: { type: string }
+                                    criterio_julgamento: { type: string }
+                                    situacao: { type: string }
+                                    tem_resultado: { type: boolean }
+                                    resultados:
+                                      type: array
+                                      items:
+                                        type: object
+                                        properties:
+                                          fornecedor_nome: { type: string }
+                                          fornecedor_ni: { type: string }
+                                          fornecedor_porte: { type: string }
+                                          valor_unitario_homologado: { type: number, nullable: true }
+                                          valor_total_homologado: { type: number, nullable: true }
+                                          quantidade_homologada: { type: number, nullable: true }
+                                          data_resultado: { type: string, nullable: true }
+                              itens_total: { type: integer }
+                              itens_truncados: { type: boolean }
+                              resultados_truncados: { type: boolean }
+                              documentos:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    sequencial: { type: integer }
+                                    titulo: { type: string }
+                                    tipo: { type: string }
+                                    data_publicacao: { type: string }
+                                    ativo: { type: boolean }
+                                    url: { type: string, description: "Download direto no PNCP." }
+                              historico:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    data: { type: string }
+                                    tipo: { type: string }
+                                    categoria: { type: string }
+                                    usuario: { type: string, nullable: true }
+                                    documento_titulo: { type: string, nullable: true }
+                                    justificativa: { type: string, nullable: true }
+                              historico_truncado: { type: boolean }
+                              secoes_indisponiveis:
+                                type: array
+                                items: { type: string }
+                                description: >
+                                  Secoes que o PNCP nao entregou nesta busca (ex.: documentos).
+                                  Lista vazia significa detalhe completo.
+                          detail_error:
+                            type: string
+                            nullable: true
+                            description: Preenchido quando o PNCP falhou e servimos o que ja tinhamos.
+        "404":
+          description: tender nao encontrado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/orgaos/{cnpj}/tenders:
+    get:
+      summary: Lista tenders de um orgao (via GSI3, nunca Scan)
+      parameters:
+        - name: cnpj
+          in: path
+          required: true
+          schema: { type: string }
+        - name: dataInicial
+          in: query
+          schema: { type: string }
+        - name: dataFinal
+          in: query
+          schema: { type: string }
+        - name: valorMin
+          in: query
+          schema: { type: number, minimum: 0 }
+        - name: valorMax
+          in: query
+          schema: { type: number, minimum: 0 }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [asc, desc], default: desc }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Cache: { schema: { type: string, enum: [HIT, MISS] } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Tender" }
+                  next_cursor: { type: string }
+                  has_more:
+                    type: boolean
+                    description: Existe (ou pode existir) mais resultado alem desta pagina. Equivale a "next_cursor veio preenchido".
+                  partial:
+                    type: boolean
+                    description: >
+                      A pagina veio com menos de 'limit' itens porque o teto de leitura por
+                      requisicao foi atingido, nao porque os dados acabaram. Continue com
+                      'next_cursor'.
+
+  /v1/filters:
+    post:
+      summary: Cria um filtro salvo do customer autenticado
+      description: >
+        'uf' e' validada contra a lista de 27 UFs. 'webhook_url' precisa ser uma URL http(s)
+        bem formada (validacao de formato na criacao -- a checagem de SSRF contra
+        IP privado/metadata acontece separadamente, a cada disparo).
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateFilterInput" }
+      responses:
+        "201":
+          description: Criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/SavedFilter" }
+        "400":
+          description: uf/modalidade/webhook_url ausente ou invalido
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: plano nao inclui webhook, ou limite de filtros do plano atingido
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    get:
+      summary: Lista os filtros salvos do customer autenticado
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/SavedFilter" }
+
+  /v1/filters/{id}:
+    delete:
+      summary: Remove um filtro salvo (so o dono pode)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Removido
+        "404":
+          description: filtro nao encontrado (inclui o caso de pertencer a outro customer -- IDOR)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/filters/{id}/deliveries:
+    get:
+      summary: Historico de entregas de webhook de um filtro (so o dono pode ver)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { type: object }
+        "404":
+          description: filtro nao encontrado (inclui o caso de pertencer a outro customer -- IDOR)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/filters/{id}/test:
+    post:
+      summary: Dispara um webhook de teste (payload sintetico) contra a URL cadastrada no filtro
+      description: >
+        Enfileira uma entrega de teste (mesmo pipeline de HMAC/retry/circuit-breaker do disparo
+        real) contra o webhook_url do filtro do proprio customer (IDOR protegido). Util pra
+        validar a URL/assinatura antes de depender de um alerta real.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "202":
+          description: Entrega de teste enfileirada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: "queued" }
+        "404":
+          description: filtro nao encontrado (inclui o caso de pertencer a outro customer -- IDOR)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/provision:
+    post:
+      summary: Provisiona (idempotente) a conta do produto para o usuario Cognito autenticado
+      description: >
+        Autenticado por ID token do Cognito (CognitoAuth), NAO por API key. Primeira chamada
+        depois do signup: cria o registro em ApiKeys (plan_tier "free") e devolve a API key
+        CRUA no campo 'api_key' -- so essa vez, nem o backend guarda a crua depois (so o
+        hash). Chamadas seguintes (conta ja provisionada) retornam o mesmo formato sem o campo
+        'api_key' (ausente).
+      security:
+        - CognitoAuth: []
+      responses:
+        "200":
+          description: Conta provisionada (nova ou ja existente)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/ProvisionResult" }
+        "401":
+          description: ID token ausente, invalido ou expirado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/api-keys:
+    post:
+      summary: Cria uma nova API key nomeada (nao substitui as existentes)
+      description: >
+        Suporte a MULTIPLAS chaves por conta (substitui o antigo modelo de 1-chave-so). plan_tier
+        da chave nova e' copiado do plano atual da conta. 'id' das respostas e' o proprio
+        api_key_hash -- nao reversivel, seguro usar como identificador.
+      security:
+        - CognitoAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, example: "Servidor de producao" }
+                expires_at: { type: string, nullable: true, description: "ISO 8601. Ausente/null = nunca expira." }
+      responses:
+        "201":
+          description: Chave criada -- api_key crua so aparece nesta resposta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/CreateApiKeyResult" }
+        "400":
+          description: name ausente/vazio ou expires_at invalido
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: conta ainda nao provisionada (chame /v1/account/provision primeiro)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    get:
+      summary: Lista todas as API keys da conta (ativas e revogadas), nunca a chave crua
+      security:
+        - CognitoAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/ApiKeySummary" }
+
+  /v1/account/api-keys/{id}:
+    patch:
+      summary: Renomeia e/ou muda a expiracao de uma API key da propria conta
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: api_key_hash (id devolvido por POST/GET /v1/account/api-keys)
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                expires_at: { type: string, nullable: true }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/ApiKeySummary" }
+        "400":
+          description: nenhum campo informado, ou name/expires_at invalido
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: chave nao encontrada (inclui pertencer a outra conta -- IDOR)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/api-keys/{id}/revoke:
+    post:
+      summary: Revoga (active:false) uma API key da propria conta
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      active: { type: boolean, example: false }
+        "404":
+          description: chave nao encontrada (inclui pertencer a outra conta -- IDOR)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/usage/daily:
+    get:
+      summary: Uso diario (API/MCP/UI/Webhook) dos ultimos 30 dias, zero-preenchido
+      description: Pros graficos do dashboard -- sem buraco nos dias sem requisicao.
+      security:
+        - CognitoAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/DailyUsageResponse" }
+
+  /v1/account/mcp-info:
+    get:
+      summary: URL do servidor MCP + lista de ferramentas disponiveis (secao informativa do dashboard)
+      security:
+        - CognitoAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/McpInfo" }
+
+  /v1/account/webhooks:
+    get:
+      summary: Lista os filtros salvos (webhooks) da conta, nunca o webhook_secret
+      security:
+        - CognitoAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/AccountWebhook" }
+    post:
+      summary: Cria um filtro salvo (webhook) para a conta autenticada por Cognito
+      description: >
+        Mesmo CRUD de POST /v1/filters (autenticado por API key), so que autenticado por ID token
+        do Cognito -- pro dashboard, que nao pede a API key do produto ao usuario. Exige plano
+        Starter ou Pro (mesmo enforcement de webhooksEnabled/maxFilters).
+      security:
+        - CognitoAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uf, modalidade, webhook_url]
+              properties:
+                uf: { type: string }
+                modalidade: { type: string }
+                keyword: { type: string }
+                webhook_url: { type: string }
+                name: { type: string, nullable: true }
+      responses:
+        "201":
+          description: Filtro criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/AccountWebhook" }
+        "400":
+          description: campo obrigatorio ausente ou invalido (uf/webhook_url)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: plano nao inclui webhook, ou limite de filtros do plano atingido
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: conta ainda nao provisionada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/webhooks/{id}:
+    patch:
+      summary: Atualiza name e/ou webhook_url de um filtro salvo da conta
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, nullable: true }
+                webhook_url: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/AccountWebhook" }
+        "400":
+          description: nenhum campo informado, ou webhook_url invalido
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: filtro nao encontrado (inclui pertencer a outro customer -- IDOR)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    delete:
+      summary: Remove um filtro salvo da conta
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Removido
+        "404":
+          description: filtro nao encontrado (inclui pertencer a outro customer -- IDOR)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/webhooks/{id}/test:
+    post:
+      summary: Dispara um alerta de teste pro webhook do filtro (mesmo dispatcher de /v1/filters/{id}/test)
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "202":
+          description: Enfileirado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: "queued" }
+        "404":
+          description: filtro nao encontrado (inclui pertencer a outro customer -- IDOR)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/webhooks/{id}/reactivate:
+    post:
+      summary: Reativa um filtro desativado pelo circuit breaker (mesma logica de /v1/filters/{id}/reactivate)
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Filtro reativado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: "reactivated" }
+        "404":
+          description: filtro nao encontrado (inclui pertencer a outro customer -- IDOR)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: filtro nao esta desativado por circuit breaker (FILTER_NOT_DISABLED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/webhooks/{id}/deliveries:
+    get:
+      summary: Historico de entregas REAIS do webhook do filtro (conta, autenticado por Cognito)
+      description: >
+        Mesmo dado de GET /v1/filters/{id}/deliveries (autenticado por API key), reusando
+        listDeliveriesForOwnedFilter -- so troca de onde vem o customer_id. Nao e' a simulacao
+        de GET /v1/account/playground/webhook-preview, e' o feed de entregas de verdade.
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { type: object }
+        "404":
+          description: filtro nao encontrado (inclui pertencer a outro customer -- IDOR)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/webhooks/{id}/regenerate-secret:
+    post:
+      summary: Gera um webhook_secret novo pro filtro (util se o secret vazar) -- nunca retornado
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      secret_regenerated: { type: boolean, example: true }
+        "404":
+          description: filtro nao encontrado (inclui pertencer a outro customer -- IDOR)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/alerts:
+    get:
+      summary: Lista os alertas por email da conta
+      description: >
+        Alerta por email e' o mesmo criterio de disparo de um webhook (uf + modalidade + keyword),
+        entregue no email da CONTA em vez de num endpoint. Roda sobre a mesma tabela e a mesma fila
+        de entrega (retry, circuit breaker, log) -- o que muda e' o canal. Esta colecao nunca
+        devolve webhooks, e /v1/account/webhooks nunca devolve alertas por email.
+      security:
+        - CognitoAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/AccountAlert" }
+    post:
+      summary: Cria um alerta por email para a conta autenticada por Cognito
+      description: >
+        Nao aceita destinatario: o email e' sempre o da conta (claim do Cognito espelhado em
+        ApiKeys.email) e e' resolvido no momento do envio. Exige plano Starter ou Pro e conta no
+        mesmo teto maxFilters dos webhooks.
+      security:
+        - CognitoAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uf, modalidade]
+              properties:
+                uf: { type: string }
+                modalidade: { type: string }
+                keyword: { type: string }
+                name: { type: string, nullable: true }
+      responses:
+        "201":
+          description: Alerta criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/AccountAlert" }
+        "400":
+          description: campo obrigatorio ausente ou invalido (uf/modalidade)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: plano nao inclui alertas, ou limite do plano atingido
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: conta sem email cadastrado (ACCOUNT_EMAIL_MISSING)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/alerts/{id}:
+    patch:
+      summary: Atualiza o nome de um alerta por email
+      description: "So o nome e' editavel -- criterio (uf/modalidade/keyword) e canal nao mudam depois de criados."
+      security:
+        - CognitoAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, nullable: true }
+      responses:
+        "200":
+          description: Alerta atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/AccountAlert" }
+        "404":
+          description: alerta nao encontrado (inclui id de webhook, que nao pertence a esta colecao)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    delete:
+      summary: Exclui um alerta por email
+      security:
+        - CognitoAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Excluido
+        "404":
+          description: alerta nao encontrado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/alerts/{id}/test:
+    post:
+      summary: Envia um email de teste do alerta para o email da conta
+      security:
+        - CognitoAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "202":
+          description: Envio enfileirado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: queued }
+                  email: { type: string, description: "destinatario usado (email da conta)" }
+        "404":
+          description: alerta nao encontrado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/alerts/{id}/reactivate:
+    post:
+      summary: Reativa um alerta desativado pelo circuit breaker
+      security:
+        - CognitoAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Reativado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: reactivated }
+        "409":
+          description: alerta nao esta desativado por circuit breaker
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/alerts/{id}/deliveries:
+    get:
+      summary: Log de entregas do alerta (envios de email, sucesso e falha)
+      security:
+        - CognitoAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { type: object }
+
+  /v1/account/alerts/{id}/copy-to-webhook:
+    post:
+      summary: Cria um webhook com o mesmo criterio do alerta
+      description: >
+        Os criterios vem do alerta guardado, nunca do request -- so a URL de destino e' informada
+        aqui. O webhook criado e' independente: editar ou excluir um nao mexe no outro.
+      security:
+        - CognitoAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [webhook_url]
+              properties:
+                webhook_url: { type: string }
+                name: { type: string }
+      responses:
+        "201":
+          description: Webhook criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/AccountWebhook" }
+        "400":
+          description: webhook_url ausente ou invalida
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: limite de alertas do plano atingido
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/playground/tenders:
+    get:
+      summary: Proxy autenticado por Cognito pra busca real de tenders (Playground do dashboard)
+      description: >
+        Mesma busca de GET /v1/tenders (mesmos parametros/validacao, reusa searchTenders), so que
+        autenticada por ID token do Cognito em vez de API key -- o dashboard nao pode pedir pro
+        cliente colar a propria API key so pra testar a API na tela (ela so aparece 1x na criacao).
+        E' a API REAL do cliente sendo usada, disparada pela nossa UI: conta pro MESMO limite por
+        minuto e quota mensal do plano dele (mesmos headers X-RateLimit-*). Diferente de
+        GET /v1/tenders, aqui 'modalidade' e' validada contra o dominio oficial do PNCP (mesma
+        lista de POST /v1/account/webhooks) -- 400 se nao bater exatamente.
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: uf
+          in: query
+          schema: { type: string, example: "GO,SP" }
+        - name: modalidade
+          in: query
+          description: Deve bater exatamente com um nome do dominio oficial do PNCP (ver POST /v1/account/webhooks).
+          schema: { type: string, example: "Pregão - Eletrônico" }
+        - name: keyword
+          in: query
+          schema: { type: string }
+        - name: valorMin
+          in: query
+          schema: { type: number, minimum: 0 }
+        - name: valorMax
+          in: query
+          schema: { type: number, minimum: 0 }
+        - name: dataInicial
+          in: query
+          schema: { type: string }
+        - name: dataFinal
+          in: query
+          schema: { type: string }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [asc, desc], default: desc }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-RateLimit-Limit: { schema: { type: integer } }
+            X-RateLimit-Remaining: { schema: { type: integer } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Tender" }
+                  next_cursor: { type: string }
+                  has_more:
+                    type: boolean
+                    description: Existe (ou pode existir) mais resultado alem desta pagina. Equivale a "next_cursor veio preenchido".
+                  partial:
+                    type: boolean
+                    description: >
+                      A pagina veio com menos de 'limit' itens porque o teto de leitura por
+                      requisicao foi atingido, nao porque os dados acabaram. Continue com
+                      'next_cursor'.
+        "400":
+          description: parametros invalidos, incluindo modalidade fora do dominio oficial
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: conta ainda nao provisionada (ACCOUNT_NOT_PROVISIONED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "429":
+          description: limite mensal do plano OU limite por minuto excedido
+
+  /v1/account/playground/tenders/{id}:
+    get:
+      summary: Proxy autenticado por Cognito pro detalhe de um tender (Playground do dashboard)
+      description: Mesmo shape/regras de GET /v1/tenders/{id}, autenticado por Cognito.
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "pncp_control_number, url-encoded (barra -> %2F)"
+          schema: { type: string, example: "07547821000191-1-000084%2F2026" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Tender" }
+        "404":
+          description: tender nao encontrado, ou conta ainda nao provisionada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "429":
+          description: limite mensal do plano OU limite por minuto excedido
+
+  /v1/account/playground/webhook-preview:
+    get:
+      summary: Simula "ver um webhook chegando" sem criar um filtro de verdade (Playground do dashboard)
+      description: >
+        NAO e' um webhook de verdade -- nao passa pelo SSRF guard/dispatcher real (isso e' so pra
+        URL de cliente controlada por ele; localhost sempre seria bloqueado, corretamente). E' uma
+        consulta que reusa a MESMA logica de correspondencia de um filtro salvo real (uf+modalidade
+        obrigatorios com igualdade EXATA, keyword opcional), ordenada pelas licitacoes mais
+        recentemente atualizadas. Honesto sobre ser polling, nao push: a ingestao real roda a cada
+        ~15min, entao "chegar na tela" reflete essa cadencia. Aceita 'since' (ISO 8601) pra so
+        devolver tenders atualizados depois da ultima checagem; o frontend deve mandar o 'since'
+        retornado na proxima chamada.
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: uf
+          in: query
+          required: true
+          schema: { type: string, example: "GO" }
+        - name: modalidade
+          in: query
+          required: true
+          description: Deve bater exatamente com um nome do dominio oficial do PNCP.
+          schema: { type: string, example: "Pregão - Eletrônico" }
+        - name: keyword
+          in: query
+          schema: { type: string }
+        - name: since
+          in: query
+          description: ISO 8601. So devolve tenders com data_atualizacao posterior a este valor.
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-RateLimit-Limit: { schema: { type: integer } }
+            X-RateLimit-Remaining: { schema: { type: integer } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      tenders:
+                        type: array
+                        items: { $ref: "#/components/schemas/Tender" }
+                      since:
+                        type: string
+                        description: Timestamp mais recente encontrado (ISO) -- mande de volta na proxima chamada.
+        "400":
+          description: uf/modalidade ausentes ou invalidos, ou since invalido
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: conta ainda nao provisionada (ACCOUNT_NOT_PROVISIONED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "429":
+          description: limite mensal do plano OU limite por minuto excedido
+
+  /v1/account/me:
+    get:
+      summary: Dados da conta do usuario Cognito autenticado (nunca a API key)
+      security:
+        - CognitoAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/AccountInfo" }
+        "404":
+          description: conta ainda nao provisionada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/usage:
+    get:
+      summary: Uso do mes atual + limite do plano da conta autenticada
+      description: Reusa a mesma logica da ferramenta MCP get_usage_stats (src/mcp/usage.service.ts).
+      security:
+        - CognitoAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/UsageStats" }
+        "404":
+          description: conta ainda nao provisionada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/checkout:
+    post:
+      summary: Inicia o checkout de assinatura (Asaas) para o plano escolhido
+      description: >
+        Cria (ou reusa) o customer no Asaas e uma assinatura recorrente com billingType
+        "UNDEFINED" (cliente escolhe boleto/cartao/Pix na fatura hospedada). 'cpfCnpj' e' obrigatorio
+        na API do Asaas para criar um customer -- o frontend precisa coletar CPF/CNPJ e nome antes
+        de chamar esta rota (nao da pra inferir a partir do Cognito). O plan_tier real do cliente
+        so muda quando o webhook POST /webhooks/asaas confirma o pagamento -- use
+        GET /v1/account/subscription para fazer polling ate la.
+      security:
+        - CognitoAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan, cpfCnpj, name]
+              properties:
+                plan: { type: string, enum: [starter, pro] }
+                cpfCnpj: { type: string, example: "12345678901" }
+                name: { type: string, example: "Fulano de Tal" }
+      responses:
+        "201":
+          description: Checkout criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/CheckoutResult" }
+        "400":
+          description: plan/cpfCnpj/name ausente ou invalido
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: conta ainda nao provisionada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/account/subscription:
+    get:
+      summary: Status atual da assinatura, para o frontend fazer polling apos o checkout
+      description: >
+        Leitura pura -- quem promove plan_tier de verdade e' o webhook do Asaas
+        (POST /webhooks/asaas). pending_plan_tier/checkout_url ficam null depois que plan_tier
+        ja reflete o plano pago.
+      security:
+        - CognitoAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/SubscriptionStatus" }
+        "404":
+          description: conta ainda nao provisionada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /v1/filters/{id}/reactivate:
+    post:
+      summary: Reativa um filtro desativado pelo circuit breaker (5 falhas consecutivas de entrega)
+      description: >
+        So aceita reativar um filtro que esta de fato desativado (active=false) -- zera o contador
+        de falhas consecutivas pra dar um circuito fechado limpo. Reativar um filtro que ja esta
+        ativo retorna 409.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Filtro reativado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: "reactivated" }
+        "404":
+          description: filtro nao encontrado (inclui o caso de pertencer a outro customer -- IDOR)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: filtro nao esta desativado por circuit breaker (FILTER_NOT_DISABLED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: "Formato: 'Bearer <api_key>'. Tambem aceito via header 'X-Api-Key: <api_key>'."
+    CognitoAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        ID token do Cognito ('Authorization: Bearer <idToken>'), obtido pelo frontend direto do
+        User Pool (us-east-1_VtOEPrPpu). So usado pelas rotas /v1/account/* (gestao de conta) --
+        as demais rotas usam ApiKeyAuth (chave do produto).
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string, example: VALIDATION_ERROR }
+            message: { type: string }
+    HealthStatus:
+      type: object
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        env: { type: string }
+        version: { type: string }
+        node_version: { type: string }
+        uptime_seconds: { type: integer }
+        timestamp: { type: string }
+        dependencies:
+          type: object
+          properties:
+            dynamodb: { type: string, enum: [ok, error] }
+    Tender:
+      type: object
+      properties:
+        pncp_control_number: { type: string }
+        org_cnpj: { type: string }
+        org_name: { type: string }
+        uf: { type: string }
+        municipio: { type: string }
+        modalidade: { type: string }
+        objeto: { type: string }
+        valor_estimado: { type: number }
+        data_publicacao: { type: string }
+        data_atualizacao: { type: string }
+        situacao: { type: string }
+        link_pncp: { type: string }
+        keywords_tokenized:
+          type: array
+          items: { type: string }
+    CreateFilterInput:
+      type: object
+      required: [uf, modalidade, webhook_url]
+      description: >
+        uf, modalidade e webhook_url sao obrigatorios (o matcher da Fase 4 usa o GSI
+        uf+modalidade de SavedFilters -- um filtro sem os dois nunca seria encontrado).
+      properties:
+        uf: { type: string, description: "Sigla de 2 letras, ex.: GO." }
+        modalidade: { type: string }
+        keyword: { type: string }
+        webhook_url: { type: string, description: "URL http(s) valida." }
+        name: { type: string, nullable: true, description: "Label opcional. Ausente = null." }
+    SavedFilter:
+      type: object
+      description: >
+        webhook_secret NUNCA aparece nas respostas da API (removido antes de serializar) --
+        e' CSPRNG gerado na criacao, usado so internamente pelo dispatcher de webhook (Fase 4)
+        pra assinar o payload com HMAC-SHA256.
+      properties:
+        customer_id: { type: string }
+        filter_id: { type: string }
+        name: { type: string, nullable: true }
+        uf: { type: string }
+        modalidade: { type: string }
+        keyword: { type: string }
+        webhook_url: { type: string }
+        active: { type: boolean }
+        consecutive_failures: { type: integer }
+        created_at: { type: string }
+        updated_at: { type: string }
+    ProvisionResult:
+      type: object
+      properties:
+        customer_id: { type: string, description: "sub do Cognito" }
+        email: { type: string, nullable: true }
+        plan_tier: { type: string, enum: [free, starter, pro] }
+        created_at: { type: string }
+        has_api_key: { type: boolean }
+        api_key:
+          type: string
+          nullable: true
+          description: "So presente na PRIMEIRA chamada de provisionamento. Ausente nas seguintes."
+    AccountInfo:
+      type: object
+      properties:
+        customer_id: { type: string }
+        email: { type: string, nullable: true }
+        plan_tier: { type: string, enum: [free, starter, pro] }
+        created_at: { type: string }
+        has_api_key: { type: boolean }
+    UsageStats:
+      type: object
+      properties:
+        plan: { type: string }
+        requestsThisMonth: { type: integer }
+        monthlyLimit: { type: integer }
+        monthlyRemaining: { type: integer }
+        perMinuteLimit: { type: integer }
+    CheckoutResult:
+      type: object
+      properties:
+        plan: { type: string, enum: [starter, pro] }
+        checkout_url:
+          type: string
+          description: "Fatura hospedada pelo Asaas (invoiceUrl) -- boleto/cartao/Pix a escolher pelo cliente."
+        pix_qr_code:
+          type: object
+          nullable: true
+          description: "Presente quando o Pix ja esta disponivel pra essa cobranca no momento do checkout."
+          properties:
+            encoded_image: { type: string, description: "PNG do QR code, base64" }
+            payload: { type: string, description: "Pix copia-e-cola" }
+            expiration_date: { type: string, nullable: true }
+        asaas_subscription_id: { type: string }
+    SubscriptionStatus:
+      type: object
+      properties:
+        plan_tier: { type: string, enum: [free, starter, pro], description: "Plano REAL atual (so muda via webhook do Asaas confirmando pagamento)." }
+        pending_plan_tier: { type: string, enum: [starter, pro], nullable: true, description: "Plano de um checkout em aberto, aguardando confirmacao de pagamento." }
+        checkout_url: { type: string, nullable: true }
+    ApiKeySummary:
+      type: object
+      description: "Nunca inclui a api_key crua -- so aparece uma vez, na resposta de POST /v1/account/api-keys."
+      properties:
+        id: { type: string, description: "api_key_hash -- identificador estavel e nao reversivel." }
+        name: { type: string }
+        created_at: { type: string }
+        expires_at: { type: string, nullable: true }
+        active: { type: boolean }
+    CreateApiKeyResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiKeySummary"
+        - type: object
+          properties:
+            api_key: { type: string, description: "Chave crua -- so aparece nesta resposta, nunca mais depois." }
+    DailyUsageResponse:
+      type: object
+      description: >
+        4 surfaces de uso: api (chamada real via API key), mcp (servidor MCP), ui (uso pelo
+        proprio Dashboard/Playground, autenticado por Cognito), webhook (disparo de entrega,
+        1 tentativa real por evento -- nao conta re-entregas apos recuperacao de crash).
+      properties:
+        days:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string, example: "2026-09-07" }
+              api_count: { type: integer }
+              mcp_count: { type: integer }
+              ui_count: { type: integer }
+              webhook_count: { type: integer }
+              total_count: { type: integer }
+        totals:
+          type: object
+          properties:
+            api: { type: integer }
+            mcp: { type: integer }
+            ui: { type: integer }
+            webhook: { type: integer }
+    McpInfo:
+      type: object
+      properties:
+        mcp_url: { type: string, example: "http://localhost:3000/mcp" }
+        tools:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              description: { type: string }
+    AccountAlert:
+      type: object
+      description: "Filtro salvo com canal 'email'. Nao tem webhook_url nem destinatario: a entrega vai para o email da conta, resolvido no envio."
+      properties:
+        id: { type: string, description: "filter_id" }
+        name: { type: string, nullable: true }
+        uf: { type: string }
+        modalidade: { type: string }
+        keyword: { type: string }
+        channel: { type: string, enum: [email] }
+        active: { type: boolean }
+        consecutive_failures: { type: integer }
+        created_at: { type: string }
+
+    AccountWebhook:
+      type: object
+      description: "Mesma entidade de SavedFilter, sem customer_id/webhook_secret, com filter_id exposto como 'id'."
+      properties:
+        id: { type: string, description: "filter_id" }
+        name: { type: string, nullable: true }
+        uf: { type: string }
+        modalidade: { type: string }
+        keyword: { type: string }
+        webhook_url: { type: string }
+        active: { type: boolean }
+        consecutive_failures: { type: integer }
+        created_at: { type: string }

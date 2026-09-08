@@ -1,0 +1,74 @@
+<div class="chart-wrap">
+  <svg viewBox="0 0 620 190" class="chart-svg" role="img" aria-label="Uso diário por API, MCP, Dashboard, Webhook e Email nos últimos 30 dias">
+    @for (line of gridLines(); track line.value) {
+      <line x1="42" [attr.y1]="line.y" x2="612" [attr.y2]="line.y" class="grid-line" />
+      <text x="36" [attr.y]="line.y + 3" class="axis-label axis-label-y" text-anchor="end">{{ line.value }}</text>
+    }
+
+    @for (bar of bars(); track bar.date) {
+      <g>
+        <title>{{ bar.tooltip }}</title>
+        @if (bar.api.height > 0) {
+          <rect [attr.x]="bar.x" [attr.y]="bar.api.y" [attr.width]="barWidth()" [attr.height]="bar.api.height" class="bar-api" />
+        }
+        @if (bar.mcp.height > 0) {
+          <rect [attr.x]="bar.x" [attr.y]="bar.mcp.y" [attr.width]="barWidth()" [attr.height]="bar.mcp.height" class="bar-mcp" />
+        }
+        @if (bar.ui.height > 0) {
+          <rect [attr.x]="bar.x" [attr.y]="bar.ui.y" [attr.width]="barWidth()" [attr.height]="bar.ui.height" class="bar-ui" />
+        }
+        @if (bar.webhook.height > 0) {
+          <rect [attr.x]="bar.x" [attr.y]="bar.webhook.y" [attr.width]="barWidth()" [attr.height]="bar.webhook.height" class="bar-webhook" />
+        }
+        @if (bar.email.height > 0) {
+          <rect [attr.x]="bar.x" [attr.y]="bar.email.y" [attr.width]="barWidth()" [attr.height]="bar.email.height" class="bar-email" />
+        }
+        @if (bar.shortLabel && bar.showLabel) {
+          <text [attr.x]="bar.x + barWidth() / 2" [attr.y]="labelY" class="axis-label" text-anchor="middle">
+            {{ bar.shortLabel }}
+          </text>
+        }
+      </g>
+    }
+
+    <line x1="42" [attr.y1]="baselineY" x2="612" [attr.y2]="baselineY" class="baseline" />
+  </svg>
+
+  <div class="chart-legend">
+    <span class="legend-item"><i class="swatch swatch-api"></i>API</span>
+    <span class="legend-item"><i class="swatch swatch-mcp"></i>MCP</span>
+    <span class="legend-item"><i class="swatch swatch-ui"></i>Dashboard</span>
+    <span class="legend-item"><i class="swatch swatch-webhook"></i>Webhook</span>
+    <span class="legend-item"><i class="swatch swatch-email"></i>Email</span>
+  </div>
+
+  <!-- Equivalente textual do gráfico para leitor de tela: o <title> por barra só cobre uma barra
+       por vez, então quem usa leitor de tela precisa desta tabela pra ver a série inteira. -->
+  <table class="sr-only">
+    <caption>Uso diário por origem, últimos 30 dias</caption>
+    <thead>
+      <tr>
+        <th scope="col">Data</th>
+        <th scope="col">API</th>
+        <th scope="col">MCP</th>
+        <th scope="col">Dashboard</th>
+        <th scope="col">Webhook</th>
+        <th scope="col">Email</th>
+        <th scope="col">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of tableRows(); track row.date) {
+        <tr>
+          <td>{{ row.date }}</td>
+          <td>{{ row.api }}</td>
+          <td>{{ row.mcp }}</td>
+          <td>{{ row.ui }}</td>
+          <td>{{ row.webhook }}</td>
+          <td>{{ row.email }}</td>
+          <td>{{ row.total }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

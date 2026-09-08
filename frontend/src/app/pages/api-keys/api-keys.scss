@@ -1,0 +1,62 @@
+:host {
+  display: block;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Bloco de alto contraste: a chave crua só aparece uma vez, então precisa se destacar do resto
+   da tela. Mesma receita do banner de "chave recém-criada" que já existia no dashboard antigo. */
+.reveal-block {
+  padding: 24px;
+  border: 1px solid var(--color-gold-500);
+  background: var(--banner-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reveal-block__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reveal-block__head h2 {
+  font-size: 1.05rem;
+}
+
+.reveal-block__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.reveal-block__value {
+  flex: 1;
+  min-width: 220px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  font-size: 0.85rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  word-break: break-all;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text);
+  accent-color: var(--accent);
+  cursor: pointer;
+  margin-bottom: 10px;
+}

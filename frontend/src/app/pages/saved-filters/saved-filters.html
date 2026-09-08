@@ -1,0 +1,121 @@
+<div class="saved-filters">
+  <app-page-header title="Filtros salvos">
+    <app-help-tooltip
+      ariaLabel="Como funcionam os filtros salvos"
+      text="Salve os critérios de uma busca para reaplicar rapidamente depois, sem preencher tudo de novo. Quando surgirem licitações novas que batem com o filtro, o número de novidades aparece na lista."
+    />
+  </app-page-header>
+
+  @if (errorMsg()) {
+    <div class="alert alert-error">{{ errorMsg() }}</div>
+  }
+
+  <section class="card panel-wide">
+    @if (loading()) {
+      <app-skeleton variant="table" [rows]="4" [columns]="5" />
+    } @else if (items().length === 0) {
+      <app-empty-state
+        title="Você ainda não tem nenhum filtro salvo"
+        hint="Salve um filtro na tela de busca para vê-lo aqui."
+      >
+        <a class="btn btn-outline btn-sm" routerLink="/app/buscar">Ir para a busca</a>
+      </app-empty-state>
+    } @else {
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Critérios</th>
+              <th>Novidades</th>
+              <th>Criado em</th>
+              <th class="col-actions">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of items(); track item.saved_search_id) {
+              <tr>
+                <td><strong>{{ item.name }}</strong></td>
+                <td>
+                  <div class="saved-filters__criteria">
+                    @for (b of criteriaBadges(item); track b) {
+                      <span class="chip">{{ b }}</span>
+                    }
+                    @if (criteriaSummary(item); as summary) {
+                      <span class="saved-filters__summary">{{ summary }}</span>
+                    }
+                    @if (criteriaBadges(item).length === 0 && !criteriaSummary(item)) {
+                      <span class="saved-filters__summary">Todas as licitações</span>
+                    }
+                  </div>
+                </td>
+                <td>
+                  @if (item.newCount > 0) {
+                    <app-status-badge tone="info">
+                      {{ item.newCount }}{{ item.newCount >= 100 ? '+' : '' }} nova(s)
+                    </app-status-badge>
+                  } @else {
+                    <span class="saved-filters__no-news">sem novidades</span>
+                  }
+                </td>
+                <td>{{ item.created_at | date:'dd/MM/yyyy' }}</td>
+                <td class="col-actions">
+                  <button
+                    type="button"
+                    class="btn btn-outline btn-xs"
+                    (click)="applyToSearch(item)"
+                    [disabled]="applyingId() === item.saved_search_id"
+                  >
+                    {{ applyingId() === item.saved_search_id ? 'Aplicando...' : 'Aplicar' }}
+                  </button>
+                  <button type="button" class="btn btn-outline btn-xs" (click)="startEdit(item)">
+                    Renomear
+                  </button>
+                  <button type="button" class="btn btn-outline btn-xs" (click)="convertToAlert(item)">
+                    Transformar em alerta
+                  </button>
+                  <button type="button" class="btn btn-danger-outline btn-xs" (click)="askDelete(item)">
+                    Excluir
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</div>
+
+@if (editing(); as item) {
+  <app-modal-shell title="Renomear filtro" size="sm" (closed)="closeEdit()">
+    <app-text-field
+      label="Nome do filtro"
+      [error]="editError()"
+      [ngModel]="editName()"
+      (ngModelChange)="editName.set($event)"
+      name="sfEditName"
+    />
+    <div modalFooter>
+      <button type="button" class="btn btn-outline" (click)="closeEdit()" [disabled]="savingEdit()">
+        Cancelar
+      </button>
+      <button type="button" class="btn btn-primary" (click)="confirmEdit()" [disabled]="savingEdit()">
+        {{ savingEdit() ? 'Salvando...' : 'Salvar' }}
+      </button>
+    </div>
+  </app-modal-shell>
+}
+
+@if (deleting(); as item) {
+  <app-confirm-dialog
+    title="Excluir filtro salvo"
+    confirmLabel="Excluir"
+    busyLabel="Excluindo..."
+    [busy]="deleteBusy()"
+    (confirmed)="confirmDelete()"
+    (cancelled)="cancelDelete()"
+  >
+    <p>O filtro <strong>{{ item.name }}</strong> para de contar novidades na hora. Não dá para desfazer.</p>
+  </app-confirm-dialog>
+}

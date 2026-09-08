@@ -1,0 +1,72 @@
+<div class="page">
+  <app-page-header
+    title="Servidor MCP"
+    subtitle="Conecte o LicitaHawk a um assistente de IA (Claude e outros compatíveis com o Model Context Protocol)."
+  />
+
+  @if (loading()) {
+    <app-skeleton variant="card" [height]="220" />
+  } @else if (errorMsg()) {
+    <div class="alert alert-error">{{ errorMsg() }}</div>
+    <button type="button" class="btn btn-outline btn-sm" (click)="load()">Tentar novamente</button>
+  } @else if (info(); as mcpInfo) {
+    <section class="card panel-wide">
+      <div class="panel-head"><h2>Dados de conexão</h2></div>
+      <dl class="detail-list">
+        <dt>URL do servidor</dt>
+        <dd>
+          <div class="inline-copy">
+            <code>{{ mcpInfo.mcp_url }}</code>
+            <button type="button" class="btn btn-outline btn-xs" (click)="copy(mcpInfo.mcp_url, 'URL copiada')">
+              Copiar
+            </button>
+          </div>
+        </dd>
+        <dt>Transporte</dt>
+        <dd>HTTP remoto, na URL acima (não é um comando local)</dd>
+        <dt>Autenticação</dt>
+        <dd>
+          Header <code>Authorization: Bearer &lt;sua API key&gt;</code>. Ainda não tem uma?
+          <a routerLink="/app/api-keys">Crie uma em API keys</a>.
+        </dd>
+      </dl>
+    </section>
+
+    <section class="card panel-wide">
+      <div class="panel-head"><h2>Configuração pronta para copiar</h2></div>
+      <p class="form-hint">
+        Cole este bloco no arquivo de configuração do seu cliente MCP e troque
+        <code>SUA_API_KEY</code> pela chave copiada na tela
+        <a routerLink="/app/api-keys">API keys</a>.
+      </p>
+      <app-code-block label="Configuração MCP (JSON)" [code]="configJson()" />
+    </section>
+
+    <section class="card panel-wide">
+      <div class="panel-head"><h2>Ferramentas disponíveis</h2></div>
+      <p class="form-hint">
+        O assistente ganha acesso direto a estas ferramentas para buscar licitações e gerenciar
+        seus alertas em linguagem natural.
+      </p>
+      <dl class="detail-list">
+        @for (tool of mcpInfo.tools; track tool.name) {
+          <dt><code>{{ tool.name }}</code></dt>
+          <dd>{{ tool.description }}</dd>
+        }
+      </dl>
+    </section>
+
+    <section class="card panel-wide">
+      <div class="panel-head"><h2>Como conectar</h2></div>
+      <ol class="steps">
+        <li>Crie ou copie uma API key na tela <a routerLink="/app/api-keys">API keys</a>.</li>
+        <li>Copie o bloco de configuração acima.</li>
+        <li>
+          Cole no arquivo de configuração do seu cliente MCP e substitua
+          <code>SUA_API_KEY</code> pela chave copiada no passo 1.
+        </li>
+        <li>Reinicie o cliente. As ferramentas listadas acima ficam disponíveis na conversa.</li>
+      </ol>
+    </section>
+  }
+</div>

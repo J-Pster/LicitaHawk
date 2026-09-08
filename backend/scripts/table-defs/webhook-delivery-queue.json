@@ -1,0 +1,10 @@
+{
+  "TableName": "WebhookDeliveryQueue",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    { "AttributeName": "delivery_id", "AttributeType": "S" }
+  ],
+  "KeySchema": [
+    { "AttributeName": "delivery_id", "KeyType": "HASH" }
+  ]
+}

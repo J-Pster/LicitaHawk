@@ -1,0 +1,10 @@
+{
+  "TableName": "Invoices",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    { "AttributeName": "ref", "AttributeType": "S" }
+  ],
+  "KeySchema": [
+    { "AttributeName": "ref", "KeyType": "HASH" }
+  ]
+}

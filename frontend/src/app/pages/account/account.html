@@ -1,0 +1,103 @@
+<div class="account-page">
+  <app-page-header title="Plano e cobrança" subtitle="Gerencie sua assinatura e forma de pagamento." />
+
+  @if (loading()) {
+    <div class="card panel-wide">
+      <app-skeleton variant="lines" [rows]="4" />
+    </div>
+    <div class="card panel-wide">
+      <app-skeleton variant="table" [rows]="3" [columns]="3" />
+    </div>
+  } @else if (errorMsg()) {
+    <div class="alert alert-error">{{ errorMsg() }}</div>
+  } @else if (account(); as acc) {
+    @if (subscription()?.pending_plan_tier; as pendingTier) {
+      <section class="card panel-wide pending-panel">
+        <div class="panel-head">
+          <div class="panel-title-row">
+            <h2>Aguardando confirmação de pagamento</h2>
+            <app-status-badge tone="warning">Pendente</app-status-badge>
+          </div>
+        </div>
+        <p class="form-hint">
+          Sua assinatura do plano {{ planLabel(pendingTier) }} está aguardando a confirmação do
+          pagamento. Isso pode levar alguns minutos depois de pagar.
+        </p>
+        @if (subscription()?.checkout_url; as url) {
+          <a class="btn btn-outline" [href]="url" target="_blank" rel="noopener">Retomar pagamento</a>
+        }
+      </section>
+    }
+
+    <section class="card panel-wide">
+      <div class="panel-head">
+        <div class="panel-title-row">
+          <h2>Seu plano</h2>
+          <span class="badge" [class]="'badge-' + acc.plan_tier">{{ planLabel(acc.plan_tier) }}</span>
+        </div>
+      </div>
+      <dl class="detail-list">
+        <div>
+          <dt>Email</dt>
+          <dd>{{ acc.email }}</dd>
+        </div>
+        <div>
+          <dt>Cliente desde</dt>
+          <dd>{{ acc.created_at | date: 'dd/MM/yyyy' }}</dd>
+        </div>
+        @if (usage(); as u) {
+          <div>
+            <dt>Limite mensal</dt>
+            <dd>{{ u.monthlyLimit }} requisições</dd>
+          </div>
+          <div>
+            <dt>Limite por minuto</dt>
+            <dd>{{ u.perMinuteLimit }} requisições/min</dd>
+          </div>
+        }
+      </dl>
+    </section>
+
+    <section class="card panel-wide">
+      <div class="panel-head"><h2>Planos disponíveis</h2></div>
+      <div class="plans-grid">
+        @for (plan of planCatalog; track plan.tier) {
+          <div class="plan-tile" [class.plan-tile--current]="plan.tier === acc.plan_tier">
+            <div class="plan-tile__head">
+              <h3>{{ plan.name }}</h3>
+              <span class="plan-tile__price">{{ plan.priceLabel }}</span>
+            </div>
+            <ul class="plan-tile__features">
+              <li>{{ plan.requestsPerMonth }} requisições/mês</li>
+              <li>{{ plan.requestsPerMinute }} requisições/min</li>
+              @for (feature of plan.features; track feature) {
+                <li>{{ feature }}</li>
+              }
+            </ul>
+            @if (plan.tier === acc.plan_tier) {
+              <span class="chip plan-tile__current-chip">Plano atual</span>
+            } @else if (isUpgrade(plan.tier)) {
+              <button
+                type="button"
+                class="btn btn-block"
+                [class.btn-primary]="isNextTier(plan.tier)"
+                [class.btn-outline]="!isNextTier(plan.tier)"
+                (click)="openCheckout(plan.tier)"
+              >
+                {{ checkoutLabel(plan.tier) }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+    </section>
+  }
+</div>
+
+@if (checkoutPlan(); as plan) {
+  <app-checkout-modal
+    [plan]="plan"
+    (closed)="checkoutPlan.set(null)"
+    (succeeded)="onCheckoutSucceeded($event)"
+  />
+}

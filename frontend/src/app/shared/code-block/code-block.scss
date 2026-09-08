@@ -1,0 +1,46 @@
+:host {
+  display: block;
+}
+
+.code-block {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.code-block + .code-block {
+  margin-top: 10px;
+}
+
+.code-block__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px 6px 12px;
+  background: var(--panel-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.code-block__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.code-block__pre {
+  margin: 0;
+  padding: 14px 16px;
+  /* Navy fixo nos dois temas, nao --active-bg: aquele token clareia no escuro (vira navy-600) e
+     o bloco fica com um azul saturado, com cara de texto selecionado. Codigo pede fundo escuro
+     sobrio e estavel, que e justamente o papel do navy-900 da marca. */
+  background: var(--color-navy-900);
+  color: #e8ecf5;
+  font-size: 0.82rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
+}

@@ -1,0 +1,66 @@
+<div class="usage-page">
+  <app-page-header title="Uso" subtitle="Consumo da API, do MCP e do dashboard no mês atual." />
+
+  @if (loading()) {
+    <div class="card panel-wide">
+      <app-skeleton variant="lines" [rows]="3" />
+    </div>
+    <div class="card panel-wide">
+      <app-skeleton variant="card" [height]="220" />
+    </div>
+  } @else if (errorMsg()) {
+    <div class="alert alert-error">{{ errorMsg() }}</div>
+  } @else if (usage(); as u) {
+    <section class="card panel-wide">
+      <div class="panel-head"><h2>Uso do mês</h2></div>
+
+      <p class="usage-figures">{{ u.requestsThisMonth }} / {{ u.monthlyLimit }} requisições</p>
+      <div
+        class="progress-track"
+        role="progressbar"
+        [attr.aria-valuenow]="usagePercent()"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-label="Percentual do limite mensal usado"
+      >
+        <div
+          class="progress-fill"
+          [class.progress-fill--warning]="usageTone() === 'warning'"
+          [class.progress-fill--danger]="usageTone() === 'danger'"
+          [style.width.%]="usagePercent()"
+        ></div>
+      </div>
+      <p class="form-hint">
+        {{ usagePercent() }}% do limite mensal usado. Restam {{ u.monthlyRemaining }} requisições
+        neste mês. Limite de {{ u.perMinuteLimit }} requisições por minuto no plano {{ u.plan }}.
+      </p>
+
+      @if (isNearLimit()) {
+        <div class="alert" [class.alert-warning]="usageTone() === 'warning'" [class.alert-error]="usageTone() === 'danger'">
+          Você já usou {{ usagePercent() }}% do limite mensal do seu plano.
+          <a class="btn-link" routerLink="/app/conta">Ver planos e fazer upgrade</a>
+        </div>
+      }
+    </section>
+
+    @if (hasNoUsage()) {
+      <app-empty-state
+        title="Ainda sem chamadas registradas"
+        hint="Assim que você começar a usar a API, o MCP ou o dashboard, o consumo aparece aqui."
+      >
+        <a class="btn btn-primary btn-sm" routerLink="/app/buscar">Buscar licitações</a>
+        <a class="btn btn-outline btn-sm" routerLink="/app/docs">Ver documentação da API</a>
+      </app-empty-state>
+    } @else if (daily(); as d) {
+      <section class="card panel-wide">
+        <div class="panel-head"><h2>Uso por dia</h2></div>
+        <app-daily-usage-chart [days]="d.days" />
+      </section>
+
+      <section class="card panel-wide">
+        <div class="panel-head"><h2>Uso por origem</h2></div>
+        <app-usage-breakdown-chart [totals]="d.totals" />
+      </section>
+    }
+  }
+</div>

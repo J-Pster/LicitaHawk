@@ -1,0 +1,12 @@
+{
+  "TableName": "WebhookDeliveryLog",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    { "AttributeName": "filter_id", "AttributeType": "S" },
+    { "AttributeName": "timestamp", "AttributeType": "S" }
+  ],
+  "KeySchema": [
+    { "AttributeName": "filter_id", "KeyType": "HASH" },
+    { "AttributeName": "timestamp", "KeyType": "RANGE" }
+  ]
+}

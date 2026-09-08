@@ -1,0 +1,12 @@
+{
+  "TableName": "SavedSearches",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    { "AttributeName": "account_id", "AttributeType": "S" },
+    { "AttributeName": "saved_search_id", "AttributeType": "S" }
+  ],
+  "KeySchema": [
+    { "AttributeName": "account_id", "KeyType": "HASH" },
+    { "AttributeName": "saved_search_id", "KeyType": "RANGE" }
+  ]
+}

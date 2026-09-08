@@ -1,0 +1,29 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.saved-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.saved-filters__criteria {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: 320px;
+}
+
+.saved-filters__summary {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.saved-filters__no-news {
+  font-size: 0.8rem;
+  color: var(--text-fine);
+}

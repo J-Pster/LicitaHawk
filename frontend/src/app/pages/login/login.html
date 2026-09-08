@@ -1,0 +1,164 @@
+<div class="auth-page">
+  <a class="back-link" routerLink="/">← LicitaHawk</a>
+
+  <div class="auth-card card">
+    @if (mode() !== 'confirm') {
+      <div class="tabs">
+        <button
+          type="button"
+          class="tab"
+          [class.active]="mode() === 'login'"
+          (click)="setMode('login')"
+        >
+          Entrar
+        </button>
+        <button
+          type="button"
+          class="tab"
+          [class.active]="mode() === 'signup'"
+          (click)="setMode('signup')"
+        >
+          Criar conta
+        </button>
+      </div>
+    }
+
+    @if (errorMsg()) {
+      <div class="alert alert-error">{{ errorMsg() }}</div>
+    }
+    @if (infoMsg()) {
+      <div class="alert alert-success">{{ infoMsg() }}</div>
+    }
+
+    @if (mode() === 'login') {
+      <form (ngSubmit)="onLogin()">
+        <div class="form-group">
+          <label class="form-label" for="login-email">Email</label>
+          <input
+            id="login-email"
+            class="form-input"
+            type="email"
+            name="email"
+            autocomplete="username"
+            [(ngModel)]="email"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="login-password">Senha</label>
+          <input
+            id="login-password"
+            class="form-input"
+            type="password"
+            name="password"
+            autocomplete="current-password"
+            [(ngModel)]="password"
+            required
+          />
+        </div>
+        <button class="btn btn-primary btn-block" type="submit" [disabled]="loading()">
+          {{ loading() ? 'Entrando...' : 'Entrar' }}
+        </button>
+      </form>
+
+      <div class="dev-test-block">
+        <span class="dev-test-label">🧪 Modo de teste</span>
+        <button
+          type="button"
+          class="btn btn-secondary btn-block"
+          [disabled]="loading()"
+          (click)="loginAsTestUser()"
+        >
+          Logar usuário de teste
+        </button>
+      </div>
+    }
+
+    @if (mode() === 'signup') {
+      <form (ngSubmit)="onSignup()">
+        <div class="form-group">
+          <label class="form-label" for="signup-email">Email</label>
+          <input
+            id="signup-email"
+            class="form-input"
+            type="email"
+            name="email"
+            autocomplete="username"
+            [(ngModel)]="email"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="signup-password">Senha</label>
+          <input
+            id="signup-password"
+            class="form-input"
+            type="password"
+            name="password"
+            autocomplete="new-password"
+            [(ngModel)]="password"
+            required
+          />
+          <span class="form-hint">Mínimo 8 caracteres, com maiúscula, minúscula e número.</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="signup-confirm-password">Confirmar senha</label>
+          <input
+            id="signup-confirm-password"
+            class="form-input"
+            type="password"
+            name="confirmPassword"
+            autocomplete="new-password"
+            [(ngModel)]="confirmPassword"
+            required
+          />
+        </div>
+        <button class="btn btn-primary btn-block" type="submit" [disabled]="loading()">
+          {{ loading() ? 'Criando conta...' : 'Criar conta' }}
+        </button>
+      </form>
+
+      <div class="dev-test-block">
+        <span class="dev-test-label">🧪 Modo de teste</span>
+        <button
+          type="button"
+          class="btn btn-secondary btn-block"
+          [disabled]="loading()"
+          (click)="fillTestSignupData()"
+        >
+          Preencher dados de teste
+        </button>
+        <span class="form-hint">
+          Preenche uma senha válida. Digite um email de verdade pra receber o código de confirmação.
+        </span>
+      </div>
+    }
+
+    @if (mode() === 'confirm') {
+      <h2 class="confirm-title">Confirme seu email</h2>
+      <p class="confirm-subtitle">
+        Digite o código de 6 dígitos que enviamos para <strong>{{ email }}</strong>.
+      </p>
+      <form (ngSubmit)="onConfirm()">
+        <div class="form-group">
+          <label class="form-label" for="confirm-code">Código de confirmação</label>
+          <input
+            id="confirm-code"
+            class="form-input"
+            type="text"
+            inputmode="numeric"
+            name="code"
+            [(ngModel)]="confirmationCode"
+            required
+          />
+        </div>
+        <button class="btn btn-primary btn-block" type="submit" [disabled]="loading()">
+          {{ loading() ? 'Confirmando...' : 'Confirmar' }}
+        </button>
+      </form>
+      <button type="button" class="link-btn" (click)="onResendCode()" [disabled]="loading()">
+        Reenviar código
+      </button>
+    }
+  </div>
+</div>

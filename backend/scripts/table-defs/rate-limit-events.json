@@ -1,0 +1,12 @@
+{
+  "TableName": "RateLimitEvents",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    { "AttributeName": "event_date", "AttributeType": "S" },
+    { "AttributeName": "sk", "AttributeType": "S" }
+  ],
+  "KeySchema": [
+    { "AttributeName": "event_date", "KeyType": "HASH" },
+    { "AttributeName": "sk", "KeyType": "RANGE" }
+  ]
+}

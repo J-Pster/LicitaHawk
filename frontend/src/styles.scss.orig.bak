@@ -1,0 +1,448 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --color-navy-900: #0a1830;
+  --color-navy-800: #112447;
+  --color-navy-700: #1a3260;
+  --color-navy-600: #24457f;
+  --color-gold-500: #c9a15a;
+  --color-gold-400: #dcbd82;
+  --color-gold-100: #f6ecd9;
+  --color-teal-600: #3f7d6c;
+  --color-terracotta-500: #b56a3a;
+  --color-white: #ffffff;
+  --color-slate-50: #f7f8fa;
+  --color-slate-100: #eef1f5;
+  --color-slate-200: #dfe4ea;
+  --color-slate-400: #97a1af;
+  --color-slate-600: #5b6472;
+  --color-slate-900: #1a2130;
+  --color-success: #2e7d5b;
+  --color-success-bg: #e8f5ee;
+  --color-danger: #b3392a;
+  --color-danger-bg: #fbeae7;
+  --color-border: #e2e6ed;
+
+  /* Semantic tokens (light = default). Dark overrides live in the
+     prefers-color-scheme media query at the bottom of this file. */
+  --surface: var(--color-white);
+  --heading: var(--color-navy-900);
+  --link: var(--color-navy-700);
+  --active-bg: var(--color-navy-900);
+  --active-bg-hover: var(--color-navy-800);
+  --active-text: var(--color-white);
+
+  --badge-neutral-bg: var(--color-slate-100);
+  --badge-neutral-text: var(--color-slate-600);
+  --badge-starter-bg: #e5edfb;
+  --badge-starter-text: var(--link);
+  --badge-pro-bg: var(--color-gold-100);
+  --badge-pro-text: #7a5b1f;
+  --banner-bg: var(--color-gold-100);
+
+  --skeleton-base: var(--color-slate-100);
+  --skeleton-highlight: var(--color-slate-200);
+
+  --focus-ring: rgba(26, 50, 96, 0.12);
+
+  --font-heading: 'Sora', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Inter', 'Segoe UI', system-ui, sans-serif;
+
+  --shadow-sm: 0 1px 2px rgba(10, 24, 48, 0.06);
+  --shadow-md: 0 6px 20px rgba(10, 24, 48, 0.08);
+  --shadow-lg: 0 20px 45px rgba(10, 24, 48, 0.14);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-slate-900);
+  background: var(--color-slate-50);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-heading);
+  color: var(--heading);
+  margin: 0;
+  line-height: 1.15;
+}
+
+p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: var(--font-body);
+}
+
+.container {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--color-gold-500);
+  color: var(--color-navy-900);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-gold-400);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-secondary {
+  background: var(--active-bg);
+  color: var(--active-text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--active-bg-hover);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--heading);
+  border-color: var(--color-slate-200);
+}
+
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--link);
+  background: var(--color-slate-100);
+}
+
+.btn-danger-outline {
+  background: transparent;
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.btn-danger-outline:hover:not(:disabled) {
+  background: var(--color-danger-bg);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 0.85rem;
+}
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Forms */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.form-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-slate-900);
+}
+
+.form-input {
+  padding: 11px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-family: var(--font-body);
+  color: var(--color-slate-900);
+  background: var(--surface);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-navy-600);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.form-hint {
+  font-size: 0.8rem;
+  color: var(--color-slate-600);
+}
+
+/* Alerts */
+.alert {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+.alert-error {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.alert-success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.badge-free {
+  background: var(--badge-neutral-bg);
+  color: var(--badge-neutral-text);
+}
+
+.badge-starter {
+  background: var(--badge-starter-bg);
+  color: var(--badge-starter-text);
+}
+
+.badge-pro {
+  background: var(--badge-pro-bg);
+  color: var(--badge-pro-text);
+}
+
+/* Dashboard wide sections (API keys, webhooks, MCP, docs) share this "big box" pattern */
+.panel-wide {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.panel-head h2 {
+  font-size: 1.15rem;
+}
+
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loading-note,
+.empty-note {
+  color: var(--color-slate-600);
+  font-size: 0.9rem;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 10px 12px;
+  color: var(--color-slate-600);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--color-slate-100);
+  vertical-align: middle;
+  color: var(--color-slate-900);
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table .col-actions {
+  white-space: nowrap;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.row-editing td {
+  background: var(--color-slate-50);
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.status-active {
+  background: var(--color-success);
+}
+
+.status-inactive {
+  background: var(--color-slate-400);
+}
+
+.status-warning {
+  background: var(--color-danger);
+}
+
+.confirm-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--color-slate-600);
+}
+
+.inline-form {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  padding: 16px;
+  background: var(--color-slate-50);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.inline-form .form-group {
+  margin-bottom: 0;
+  min-width: 180px;
+  flex: 1;
+}
+
+.inline-form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.form-input-sm {
+  padding: 7px 10px;
+  font-size: 0.85rem;
+}
+
+.btn-xs {
+  padding: 5px 12px;
+  font-size: 0.78rem;
+}
+
+.text-truncate {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Dark mode: follows the OS preference, no manual toggle. Neutral
+   backgrounds/text/borders flip; the navy/gold brand pairs (buttons,
+   badges, sidebar) are self-contrasting and stay as-is on purpose. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-slate-50: #0b1220;
+    --color-slate-100: #1b2740;
+    --color-slate-200: #26314a;
+    --color-slate-400: #6b7a99;
+    --color-slate-600: #9aa7c2;
+    --color-slate-900: #e8ecf5;
+    --color-border: #2a3752;
+    --color-success: #4fbf8b;
+    --color-success-bg: #16302a;
+    --color-danger: #e5695a;
+    --color-danger-bg: #3a1c19;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 20px 45px rgba(0, 0, 0, 0.55);
+
+    --surface: #141d2f;
+    --heading: var(--color-gold-100);
+    --link: #8fb2e8;
+    --active-bg: var(--color-navy-600);
+    --active-bg-hover: var(--color-navy-700);
+
+    --badge-starter-bg: #1c2c4a;
+    --banner-bg: #3a2f1a;
+    --badge-pro-text: #f0d9a8;
+
+    --focus-ring: rgba(220, 189, 130, 0.35);
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "TableName": "SavedTenders",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    { "AttributeName": "account_id", "AttributeType": "S" },
+    { "AttributeName": "pncp_control_number", "AttributeType": "S" }
+  ],
+  "KeySchema": [
+    { "AttributeName": "account_id", "KeyType": "HASH" },
+    { "AttributeName": "pncp_control_number", "KeyType": "RANGE" }
+  ]
+}

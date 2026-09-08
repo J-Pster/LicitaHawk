@@ -1,0 +1,415 @@
+@if (loading()) {
+  <div class="td__loading">
+    <app-skeleton variant="card" [height]="120" />
+    <app-skeleton variant="lines" [rows]="4" />
+    <app-skeleton variant="table" [rows]="4" [columns]="5" />
+  </div>
+} @else if (errorMsg()) {
+  <div class="alert alert-error">{{ errorMsg() }}</div>
+  <a class="btn btn-outline btn-sm" routerLink="/app/buscar">Voltar para a busca</a>
+} @else if (tender(); as t) {
+  <article class="td">
+    <!-- Cabeçalho -->
+    <header class="td__head">
+      <div class="td__head-top">
+        <a class="btn-link" routerLink="/app/buscar">Voltar para a busca</a>
+        <div class="td__head-actions">
+          <button
+            type="button"
+            class="btn btn-outline btn-xs"
+            [disabled]="savingTender()"
+            (click)="toggleSaved()"
+          >
+            {{ savingTender() ? 'Salvando...' : (saved() ? 'Remover das salvas' : 'Salvar') }}
+          </button>
+          <button
+            type="button"
+            class="btn btn-outline btn-xs"
+            [disabled]="refreshing()"
+            (click)="recarregarDoPncp()"
+          >
+            {{ refreshing() ? 'Consultando o PNCP...' : 'Atualizar do PNCP' }}
+          </button>
+          <a class="btn btn-outline btn-xs" [href]="t.link_pncp" target="_blank" rel="noopener">
+            Ver no portal do governo
+          </a>
+        </div>
+      </div>
+
+      <h1 class="td__title">{{ t.objeto }}</h1>
+
+      <div class="td__badges">
+        <app-status-badge [tone]="situacaoTone(t.situacao)">{{ t.situacao }}</app-status-badge>
+        <span class="chip">{{ t.modalidade }}</span>
+        <span class="chip">{{ t.uf }}{{ t.municipio ? ' - ' + t.municipio : '' }}</span>
+        @if (campo('srp') === 'Sim') {
+          <span class="chip">Registro de preços</span>
+        }
+        @if (campo('modoDisputaNome')) {
+          <span class="chip">{{ campo('modoDisputaNome') }}</span>
+        }
+      </div>
+
+      <button type="button" class="td__control" (click)="copiarNumeroControle()" title="Copiar">
+        {{ t.pncp_control_number }}
+      </button>
+    </header>
+
+    @if (detailLoading()) {
+      <div class="alert alert-info td__loading-detail">
+        <span class="spinner"></span>
+        Buscando no PNCP os itens, documentos e resultados desta licitação...
+      </div>
+    }
+
+    @if (t.detail_error) {
+      <div class="alert alert-warning">
+        Não foi possível falar com o PNCP agora ({{ t.detail_error }}). Mostrando o que já tínhamos
+        guardado.
+      </div>
+    } @else if (secoesIndisponiveis().length > 0) {
+      <div class="alert alert-warning">
+        O PNCP não devolveu {{ secoesIndisponiveis().join(', ') }} nesta consulta. O resto está
+        completo. Use "Atualizar do PNCP" para tentar de novo.
+      </div>
+    }
+
+    <!-- Números principais -->
+    <section class="td__numbers">
+      <div class="card td__number">
+        <span class="overline">Valor estimado</span>
+        <strong>{{ t.valor_estimado | currency: 'BRL' : 'symbol' : '1.2-2' : 'pt-BR' }}</strong>
+      </div>
+      @if (valorHomologado() !== null) {
+        <div class="card td__number">
+          <span class="overline">Valor homologado</span>
+          <strong class="td__number--ok">
+            {{ valorHomologado() | currency: 'BRL' : 'symbol' : '1.2-2' : 'pt-BR' }}
+          </strong>
+        </div>
+      }
+      <div class="card td__number">
+        <span class="overline">Propostas até</span>
+        <strong>
+          {{ campo('dataEncerramentoProposta') ? (campo('dataEncerramentoProposta') | date: 'dd/MM/yyyy HH:mm') : 'não informado' }}
+        </strong>
+      </div>
+      <div class="card td__number">
+        <span class="overline">Publicada em</span>
+        <strong>{{ t.data_publicacao | date: 'dd/MM/yyyy' }}</strong>
+      </div>
+    </section>
+
+    <!-- Dados da contratação -->
+    <section class="card panel-wide">
+      <div class="panel-head"><h2>Dados da contratação</h2></div>
+      <dl class="detail-list">
+        <dt>Órgão</dt>
+        <dd>{{ t.org_name }} <span class="td__muted">({{ t.org_cnpj }})</span></dd>
+
+        @if (campoAninhado('unidadeOrgao.nomeUnidade')) {
+          <dt>Unidade</dt>
+          <dd>
+            {{ campoAninhado('unidadeOrgao.nomeUnidade') }}
+            <span class="td__muted">código {{ campoAninhado('unidadeOrgao.codigoUnidade') }}</span>
+          </dd>
+        }
+
+        <dt>Local</dt>
+        <dd>{{ t.municipio }} - {{ t.uf }}</dd>
+
+        <dt>Modalidade</dt>
+        <dd>{{ t.modalidade }}</dd>
+
+        @if (campo('tipoInstrumentoConvocatorioNome')) {
+          <dt>Instrumento</dt>
+          <dd>{{ campo('tipoInstrumentoConvocatorioNome') }}</dd>
+        }
+        @if (campo('numeroCompra')) {
+          <dt>Número da compra</dt>
+          <dd>{{ campo('numeroCompra') }}</dd>
+        }
+        @if (campo('processo')) {
+          <dt>Processo</dt>
+          <dd>{{ campo('processo') }}</dd>
+        }
+        @if (campoAninhado('amparoLegal.nome')) {
+          <dt>Amparo legal</dt>
+          <dd>
+            {{ campoAninhado('amparoLegal.nome') }}
+            @if (campoAninhado('amparoLegal.descricao')) {
+              <span class="td__muted">{{ campoAninhado('amparoLegal.descricao') }}</span>
+            }
+          </dd>
+        }
+        @if (campo('orcamentoSigilosoDescricao')) {
+          <dt>Orçamento</dt>
+          <dd>{{ campo('orcamentoSigilosoDescricao') }}</dd>
+        }
+        @if (campo('dataAberturaProposta')) {
+          <dt>Abertura das propostas</dt>
+          <dd>{{ campo('dataAberturaProposta') | date: 'dd/MM/yyyy HH:mm' }}</dd>
+        }
+        @if (campo('informacaoComplementar')) {
+          <dt>Informação complementar</dt>
+          <dd>{{ campo('informacaoComplementar') }}</dd>
+        }
+        @if (campo('usuarioNome')) {
+          <dt>Publicado por</dt>
+          <dd>{{ campo('usuarioNome') }}</dd>
+        }
+        @if (campo('linkSistemaOrigem')) {
+          <dt>Sistema de origem</dt>
+          <dd>
+            <a class="td__link" [href]="campo('linkSistemaOrigem')" target="_blank" rel="noopener">
+              Abrir o sistema onde a licitação acontece
+            </a>
+          </dd>
+        }
+        <dt>Última atualização no PNCP</dt>
+        <dd>{{ t.data_atualizacao | date: 'dd/MM/yyyy HH:mm' }}</dd>
+      </dl>
+    </section>
+
+    <!-- Itens -->
+    <section class="card panel-wide">
+      <div class="panel-head">
+        <h2>Itens</h2>
+        @if (tender()?.detail?.itens_total; as total) {
+          <span class="form-hint">
+            {{ total }} item(ns)
+            @if (tender()?.detail?.itens_truncados) {
+              (exibindo os {{ itens().length }} primeiros)
+            }
+          </span>
+        }
+      </div>
+
+      @if (itens().length === 0) {
+        <app-empty-state
+          title="Nenhum item detalhado"
+          hint="Esta contratação não publicou itens no PNCP, ou eles não vieram na última consulta."
+        />
+      } @else {
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Descrição</th>
+                <th>Qtd.</th>
+                <th>Unidade</th>
+                <th>Valor unitário</th>
+                <th>Valor total</th>
+                <th>Situação</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of itens(); track item.numero) {
+                <tr>
+                  <td>{{ item.numero }}</td>
+                  <td>
+                    {{ item.descricao }}
+                    @if (item.informacao_complementar) {
+                      <span class="td__muted">{{ item.informacao_complementar }}</span>
+                    }
+                  </td>
+                  <td>{{ item.quantidade }}</td>
+                  <td>{{ item.unidade_medida }}</td>
+                  <td>{{ item.valor_unitario_estimado | currency: 'BRL' : 'symbol' : '1.2-2' : 'pt-BR' }}</td>
+                  <td>{{ item.valor_total | currency: 'BRL' : 'symbol' : '1.2-2' : 'pt-BR' }}</td>
+                  <td>
+                    <app-status-badge [tone]="item.tem_resultado ? 'success' : 'info'">
+                      {{ item.situacao }}
+                    </app-status-badge>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+
+    <!-- Resultado -->
+    @if (itensComResultado().length > 0) {
+      <section class="card panel-wide">
+        <div class="panel-head">
+          <h2>Resultado</h2>
+          <span class="form-hint">Quem venceu e por quanto, item a item.</span>
+        </div>
+        @if (tender()?.detail?.resultados_truncados) {
+          <p class="form-hint">
+            Esta contratação tem muitos itens com resultado. Exibindo os primeiros.
+          </p>
+        }
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Fornecedor</th>
+                <th>CNPJ/CPF</th>
+                <th>Porte</th>
+                <th>Qtd. homologada</th>
+                <th>Valor homologado</th>
+                <th>Data</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of itensComResultado(); track item.numero) {
+                @for (r of item.resultados; track r.fornecedor_ni + r.data_resultado) {
+                  <tr>
+                    <td>{{ item.numero }}</td>
+                    <td>{{ r.fornecedor_nome }}</td>
+                    <td>{{ r.fornecedor_ni }}</td>
+                    <td>{{ r.fornecedor_porte }}</td>
+                    <td>{{ r.quantidade_homologada }}</td>
+                    <td>{{ r.valor_total_homologado | currency: 'BRL' : 'symbol' : '1.2-2' : 'pt-BR' }}</td>
+                    <td>{{ r.data_resultado ? (r.data_resultado | date: 'dd/MM/yyyy') : '-' }}</td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+
+    <!-- Documentos -->
+    <section class="card panel-wide">
+      <div class="panel-head">
+        <h2>Documentos</h2>
+        <span class="form-hint">Edital, anexos e avisos, direto do PNCP.</span>
+      </div>
+      @if (documentos().length === 0) {
+        <app-empty-state
+          title="Nenhum documento disponível"
+          hint="Nada foi publicado ainda, ou o PNCP não devolveu a lista nesta consulta."
+        />
+      } @else {
+        <ul class="td__docs">
+          @for (doc of documentos(); track doc.sequencial) {
+            <li class="td__doc">
+              <div class="td__doc-info">
+                <a class="td__doc-title" [href]="doc.url" target="_blank" rel="noopener">
+                  {{ doc.titulo }}
+                </a>
+                <span class="td__muted">
+                  {{ doc.tipo }} - publicado em {{ doc.data_publicacao | date: 'dd/MM/yyyy' }}
+                </span>
+              </div>
+              @if (!doc.ativo) {
+                <app-status-badge tone="neutral">Inativo</app-status-badge>
+              }
+              <a class="btn btn-outline btn-xs" [href]="doc.url" target="_blank" rel="noopener">
+                Baixar
+              </a>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <!-- Histórico -->
+    @if (historico().length > 0) {
+      <app-collapsible-section
+        heading="Histórico de alterações"
+        [meta]="historico().length + ' evento(s)'"
+        [(open)]="historicoOpen"
+      >
+        <ul class="td__history">
+          @for (h of historico(); track h.data + h.tipo + (h.documento_titulo ?? '')) {
+            <li class="td__history-item">
+              <span class="td__history-date">{{ h.data | date: 'dd/MM/yyyy HH:mm' }}</span>
+              <span class="td__history-text">
+                <strong>{{ h.tipo }}</strong> em {{ h.categoria }}
+                @if (h.documento_titulo) {
+                  <span class="td__muted">{{ h.documento_titulo }}</span>
+                }
+                @if (h.justificativa) {
+                  <span class="td__muted">{{ h.justificativa }}</span>
+                }
+              </span>
+              @if (h.usuario) {
+                <span class="td__muted">{{ h.usuario }}</span>
+              }
+            </li>
+          }
+        </ul>
+      </app-collapsible-section>
+    }
+
+    <!-- Dados brutos: nada fica escondido de quem integra -->
+    <app-collapsible-section
+      heading="Dados brutos do PNCP"
+      meta="JSON"
+      [(open)]="dadosBrutosOpen"
+    >
+      <p class="form-hint">
+        Exatamente o que a API do PNCP devolve para esta contratação. É a mesma coisa que a nossa
+        API entrega em <code>GET /v1/tenders/{{ '{' }}id{{ '}' }}</code>.
+      </p>
+      <pre class="td__json">{{ dadosBrutosJson() }}</pre>
+    </app-collapsible-section>
+
+    <!-- Outras do mesmo órgão -->
+    <section class="card panel-wide">
+      <div class="panel-head">
+        <h2>Outras licitações deste órgão</h2>
+      </div>
+
+      @if (orgTendersLoading()) {
+        <app-skeleton variant="table" [rows]="3" [columns]="4" />
+      } @else if (orgTendersError()) {
+        <div class="alert alert-error">{{ orgTendersError() }}</div>
+      } @else if (orgTenders().length === 0) {
+        <p class="empty-note">Nenhuma outra licitação indexada para este órgão.</p>
+      } @else {
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Objeto</th>
+                <th>Modalidade</th>
+                <th>Valor estimado</th>
+                <th>Publicada em</th>
+                <th class="col-actions-head">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (other of orgTenders(); track other.pncp_control_number) {
+                <tr class="clickable-row" (click)="openTender(other.pncp_control_number)">
+                  <td><span class="text-truncate" [title]="other.objeto">{{ other.objeto }}</span></td>
+                  <td>{{ other.modalidade }}</td>
+                  <td>{{ other.valor_estimado | currency: 'BRL' : 'symbol' : '1.2-2' : 'pt-BR' }}</td>
+                  <td>{{ other.data_publicacao | date: 'dd/MM/yyyy' }}</td>
+                  <td>
+                    <a
+                      class="btn btn-outline btn-xs"
+                      [routerLink]="['/app/tenders', other.pncp_control_number]"
+                      (click)="$event.stopPropagation()"
+                    >
+                      Abrir
+                    </a>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        @if (orgTendersCursor()) {
+          <button
+            type="button"
+            class="btn btn-outline btn-sm"
+            [disabled]="orgTendersLoadingMore()"
+            (click)="loadMoreOrgTenders()"
+          >
+            {{ orgTendersLoadingMore() ? 'Carregando...' : 'Carregar mais' }}
+          </button>
+        }
+      }
+    </section>
+  </article>
+}

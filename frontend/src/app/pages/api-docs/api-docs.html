@@ -1,0 +1,131 @@
+<div class="page">
+  <app-page-header
+    title="Documentação da API"
+    subtitle="Autenticação, formatos de request/response, limites e a referência de cada endpoint."
+  >
+    <a class="btn btn-outline btn-sm" [href]="swaggerUrl" target="_blank" rel="noopener">
+      Abrir Swagger interativo →
+    </a>
+  </app-page-header>
+
+  <section class="card panel-wide">
+    <div class="panel-head"><h2>Início rápido</h2></div>
+    <ol class="steps">
+      <li>Crie uma chave na tela <a routerLink="/app/api-keys">API keys</a>.</li>
+      <li>
+        Envie-a em toda chamada no header <code>Authorization: Bearer &lt;chave&gt;</code> (ou
+        <code>X-Api-Key: &lt;chave&gt;</code>).
+      </li>
+      <li>Faça sua primeira chamada:</li>
+    </ol>
+    <app-code-block label="Primeira chamada" [code]="firstCallExample" />
+
+    <p class="form-hint doc-spaced">
+      Toda resposta de sucesso devolve os dados no campo <code>data</code>; buscas paginadas também
+      trazem <code>next_cursor</code> quando há mais páginas.
+    </p>
+    <app-code-block label="Formato de resposta" [code]="responseFormatExample" />
+
+    <p class="form-hint doc-spaced">
+      Toda resposta de erro segue o mesmo formato, com um <code>code</code> estável para tratar por
+      máquina (ex.: <code>VALIDATION_ERROR</code>, <code>NOT_FOUND</code>, <code>UNAUTHORIZED</code>,
+      <code>RATE_LIMITED</code>, <code>PLAN_LIMIT_EXCEEDED</code>) em vez de depender do texto de
+      <code>message</code>, que é em português e pode mudar.
+    </p>
+    <app-code-block label="Formato de erro" [code]="errorFormatExample" />
+  </section>
+
+  <section class="card panel-wide">
+    <div class="panel-head"><h2>Limites</h2></div>
+    <p class="form-hint">
+      Dois limites distintos, aplicados juntos em toda chamada autenticada, e que não se confundem:
+    </p>
+    <!--
+      Números hardcoded aqui (não há endpoint que devolva os limites dos planos que não são o
+      atual). O outro lugar com os mesmos valores é frontend/src/app/pages/account/plan-catalog.ts
+      (worker-3) -- mudou um, muda o outro.
+    -->
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Plano</th>
+            <th>Limite mensal</th>
+            <th>Limite por minuto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Free</td>
+            <td>100 requisições/mês</td>
+            <td>30 requisições/min</td>
+          </tr>
+          <tr>
+            <td>Starter</td>
+            <td>5.000 requisições/mês</td>
+            <td>180 requisições/min</td>
+          </tr>
+          <tr>
+            <td>Pro</td>
+            <td>50.000 requisições/mês</td>
+            <td>600 requisições/min</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="form-hint doc-spaced">
+      Estourar qualquer um dos dois responde <code>429</code>: o mensal vem com
+      <code>code: PLAN_LIMIT_EXCEEDED</code>, o por minuto vem com <code>code: RATE_LIMITED</code> e
+      o header <code>Retry-After</code>. Os headers <code>X-RateLimit-Limit</code> e
+      <code>X-RateLimit-Remaining</code> aparecem em toda resposta autenticada e refletem sempre o
+      limite por minuto. Acompanhe seu consumo em <a routerLink="/app/uso">Uso</a>.
+    </p>
+  </section>
+
+  <section class="card panel-wide">
+    <div class="panel-head">
+      <h2>Referência de endpoints</h2>
+    </div>
+    <p class="form-hint">
+      Use uma chave da tela <a routerLink="/app/api-keys">API keys</a> em cada chamada, ou conecte
+      pelo <a routerLink="/app/mcp">servidor MCP</a> para automatizar via assistente de IA sem
+      escrever nenhuma dessas chamadas na mão.
+    </p>
+
+    <div class="endpoints-list">
+      @for (ep of endpoints; track ep.method + ep.path) {
+        <app-collapsible-section [heading]="ep.method + ' ' + ep.path" [meta]="ep.summary">
+          <p class="form-hint">{{ ep.description }}</p>
+
+          @if (ep.params?.length) {
+            <div class="table-scroll">
+              <table class="data-table params-table">
+                <thead>
+                  <tr>
+                    <th>Parâmetro</th>
+                    <th>Em</th>
+                    <th>Obrigatório</th>
+                    <th>Descrição</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (p of ep.params; track p.name) {
+                    <tr>
+                      <td><code>{{ p.name }}</code></td>
+                      <td>{{ p.where }}</td>
+                      <td>{{ p.required ? 'Sim' : 'Não' }}</td>
+                      <td>{{ p.description }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+
+          <app-code-block label="Exemplo de chamada" [code]="ep.exampleCurl" />
+          <app-code-block label="Exemplo de resposta" [code]="ep.exampleResponse" />
+        </app-collapsible-section>
+      }
+    </div>
+  </section>
+</div>

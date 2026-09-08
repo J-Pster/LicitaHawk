@@ -1,0 +1,64 @@
+:host {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.help-tooltip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.help-tooltip__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-slate-400);
+  cursor: help;
+  border-radius: 50%;
+  transition: color 0.15s ease;
+}
+
+.help-tooltip__icon:hover,
+.help-tooltip__icon:focus-visible {
+  color: var(--color-navy-700);
+}
+
+.help-tooltip__icon:focus-visible {
+  outline: 2px solid var(--color-navy-600);
+  outline-offset: 2px;
+}
+
+.help-tooltip__svg circle {
+  fill: currentColor;
+  opacity: 0.16;
+}
+
+.help-tooltip__svg text {
+  fill: currentColor;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-body, sans-serif);
+}
+
+.help-tooltip__panel {
+  position: fixed;
+  z-index: 2000;
+  background: var(--color-navy-900);
+  color: var(--color-white);
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.help-tooltip__text {
+  margin: 0;
+  color: inherit;
+}

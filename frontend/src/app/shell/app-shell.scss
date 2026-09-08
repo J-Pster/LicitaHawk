@@ -1,0 +1,407 @@
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  min-height: 100vh;
+  background: var(--page-bg);
+  transition: grid-template-columns 0.18s ease;
+}
+
+.shell--collapsed {
+  grid-template-columns: var(--sidebar-w-collapsed) 1fr;
+}
+
+/* =============================================================================
+   Sidebar
+   ========================================================================== */
+
+.shell__sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px 12px;
+  background: var(--color-navy-900);
+  color: var(--color-white);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+.shell__sidebar::-webkit-scrollbar {
+  display: none;
+}
+
+.shell__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 4px 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--color-white);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.shell__brand-mark {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--brand-gold);
+  color: var(--on-gold);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.shell__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.shell__nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shell__nav-section-label {
+  padding: 0 12px 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.4);
+  white-space: nowrap;
+}
+
+.shell__nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.shell__nav-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-white);
+}
+
+.shell__nav-item:focus-visible {
+  outline: 2px solid var(--brand-gold);
+  outline-offset: -2px;
+}
+
+/* Item ativo em dourado: e o unico lugar do chrome onde a marca vira fundo. */
+.shell__nav-item.is-active {
+  background: var(--brand-gold);
+  color: var(--on-gold);
+}
+
+.shell__nav-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.shell__nav-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.shell__nav-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Badge numerico: visivel na sidebar expandida, ao lado do rotulo. */
+.shell__nav-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-gold);
+  color: var(--on-gold);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+/* Bolinha sobre o icone: so aparece na sidebar recolhida, onde o badge numerico nao cabe --
+   sem ela a novidade sumiria quando o usuario recolhe o menu. */
+.shell__nav-badge-dot {
+  display: none;
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand-gold);
+  border: 1.5px solid var(--color-navy-900);
+}
+
+.shell__sidebar-footer {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.shell__collapse {
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 500;
+}
+
+/* Estado recolhido: some o texto, o item vira um quadrado de icone centralizado. */
+.shell--collapsed .shell__brand-name,
+.shell--collapsed .shell__nav-label,
+.shell--collapsed .shell__nav-section-label {
+  display: none;
+}
+
+.shell--collapsed .shell__nav-item {
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.shell--collapsed .shell__nav-section + .shell__nav-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 12px;
+}
+
+/* Recolhido: some o badge numerico (nao cabe) e mostra a bolinha sobre o icone no lugar. */
+.shell--collapsed .shell__nav-badge {
+  display: none;
+}
+
+.shell--collapsed .shell__nav-badge-dot {
+  display: block;
+}
+
+/* =============================================================================
+   Corpo
+   ========================================================================== */
+
+.shell__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.shell__topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+}
+
+.shell__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 1.15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell__topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.shell__menu-btn {
+  display: none;
+}
+
+.shell__user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 240px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.shell__user:hover {
+  background: var(--hover-bg);
+  border-color: var(--color-border);
+}
+
+.shell__user:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.shell__avatar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-navy-700);
+  color: var(--color-white);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.shell__user-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell__user-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+}
+
+.shell__user-card-email {
+  font-size: 0.82rem;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.shell__content {
+  flex: 1;
+  width: 100%;
+  max-width: var(--content-max-w);
+  margin: 0 auto;
+  padding: 28px 32px;
+}
+
+.shell__scrim {
+  display: none;
+}
+
+/* =============================================================================
+   Mobile: a sidebar vira gaveta sobreposta
+   ========================================================================== */
+
+@media (max-width: 860px) {
+  .shell,
+  .shell--collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .shell__sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: calc(var(--z-dropdown) + 1);
+    width: var(--sidebar-w);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .shell--drawer-open .shell__sidebar {
+    transform: translateX(0);
+  }
+
+  /* Na gaveta o menu esta sempre por extenso: nao ha por que economizar largura. */
+  .shell--collapsed .shell__brand-name,
+  .shell--collapsed .shell__nav-label,
+  .shell--collapsed .shell__nav-section-label {
+    display: revert;
+  }
+
+  .shell--collapsed .shell__nav-item {
+    justify-content: flex-start;
+    padding: 10px 12px;
+  }
+
+  /* Na gaveta o rotulo sempre volta, entao o badge tambem volta a forma numerica. */
+  .shell--collapsed .shell__nav-badge {
+    display: inline-flex;
+  }
+
+  .shell--collapsed .shell__nav-badge-dot {
+    display: none;
+  }
+
+  .shell__collapse {
+    display: none;
+  }
+
+  .shell__scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-dropdown);
+    border: none;
+    padding: 0;
+    background: var(--overlay-scrim);
+    cursor: pointer;
+  }
+
+  .shell__menu-btn {
+    display: inline-flex;
+  }
+
+  .shell__topbar {
+    padding: 12px 16px;
+  }
+
+  .shell__user-email {
+    display: none;
+  }
+
+  .shell__content {
+    padding: 20px 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell,
+  .shell__sidebar {
+    transition: none;
+  }
+}

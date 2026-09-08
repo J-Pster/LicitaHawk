@@ -1,0 +1,205 @@
+:host {
+  display: block;
+}
+
+.td,
+.td__loading {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* =============================================================================
+   Cabecalho
+   ========================================================================== */
+
+.td__head {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.td__head-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.td__head-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.td__title {
+  font-size: 1.35rem;
+  line-height: 1.35;
+}
+
+.td__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Numero de controle: e o identificador que o usuario cola em sistema de terceiro, entao e
+   monoespacado e copiavel com um clique. */
+.td__control {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--panel-muted);
+  color: var(--text-muted);
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.td__control:hover {
+  border-color: var(--link);
+  color: var(--text);
+}
+
+/* =============================================================================
+   Numeros principais
+   ========================================================================== */
+
+.td__numbers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.td__number {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+}
+
+.td__number strong {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  color: var(--heading);
+}
+
+.td__number--ok {
+  color: var(--color-success);
+}
+
+/* =============================================================================
+   Conteudo
+   ========================================================================== */
+
+.td__muted {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin-top: 2px;
+}
+
+.td__link {
+  color: var(--link);
+  font-weight: 600;
+}
+
+.td__docs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.td__doc {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--panel-muted);
+}
+
+.td__doc-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.td__doc-title {
+  color: var(--heading);
+  font-weight: 600;
+  font-size: 0.92rem;
+  text-decoration: none;
+}
+
+.td__doc-title:hover {
+  color: var(--link);
+  text-decoration: underline;
+}
+
+.td__history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.td__history-item {
+  display: grid;
+  grid-template-columns: 150px 1fr auto;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.88rem;
+}
+
+.td__history-item:last-child {
+  border-bottom: none;
+}
+
+.td__history-date {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.td__json {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-navy-900);
+  color: #e8ecf5;
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.col-actions-head {
+  width: 1%;
+}
+
+@media (max-width: 640px) {
+  .td__history-item {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .td__doc {
+    flex-wrap: wrap;
+  }
+}
+
+.td__loading-detail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}

@@ -1,0 +1,28 @@
+{
+  "TableName": "ApiKeys",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    { "AttributeName": "api_key_hash", "AttributeType": "S" },
+    { "AttributeName": "asaas_customer_id", "AttributeType": "S" },
+    { "AttributeName": "customer_id", "AttributeType": "S" }
+  ],
+  "KeySchema": [
+    { "AttributeName": "api_key_hash", "KeyType": "HASH" }
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "GSI-asaas-customer-id",
+      "KeySchema": [
+        { "AttributeName": "asaas_customer_id", "KeyType": "HASH" }
+      ],
+      "Projection": { "ProjectionType": "ALL" }
+    },
+    {
+      "IndexName": "GSI-customer-id",
+      "KeySchema": [
+        { "AttributeName": "customer_id", "KeyType": "HASH" }
+      ],
+      "Projection": { "ProjectionType": "ALL" }
+    }
+  ]
+}

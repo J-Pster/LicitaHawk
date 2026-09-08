@@ -1,0 +1,10 @@
+{
+  "TableName": "TenderDetails",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    { "AttributeName": "pncp_control_number", "AttributeType": "S" }
+  ],
+  "KeySchema": [
+    { "AttributeName": "pncp_control_number", "KeyType": "HASH" }
+  ]
+}

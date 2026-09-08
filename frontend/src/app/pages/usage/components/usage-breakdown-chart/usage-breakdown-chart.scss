@@ -1,0 +1,113 @@
+:host {
+  display: block;
+}
+
+.donut-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.donut-svg {
+  width: 160px;
+  height: 160px;
+}
+
+.donut-track {
+  fill: none;
+  stroke: var(--color-border);
+  stroke-width: 14;
+}
+
+.donut-segment {
+  fill: none;
+  stroke-width: 14;
+  transform: rotate(-90deg);
+  transform-origin: 70px 70px;
+  transition: stroke-dasharray 0.4s ease, stroke-dashoffset 0.4s ease;
+}
+
+/* Cores de série categóricas: mesma escolha do gráfico diário (paleta bruta, sem token dedicado). */
+.donut-api {
+  stroke: var(--color-navy-700);
+}
+
+.donut-mcp {
+  stroke: var(--color-gold-500);
+}
+
+.donut-ui {
+  stroke: var(--color-teal-600);
+}
+
+.donut-webhook {
+  stroke: var(--color-terracotta-500);
+}
+
+.donut-email {
+  stroke: var(--color-navy-600);
+}
+
+.donut-center-value {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 800;
+  fill: var(--heading);
+}
+
+.donut-center-label {
+  font-size: 0.6rem;
+  fill: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.no-data-note {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding: 40px 0;
+}
+
+.donut-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.swatch-api {
+  background: var(--color-navy-700);
+}
+
+.swatch-mcp {
+  background: var(--color-gold-500);
+}
+
+.swatch-ui {
+  background: var(--color-teal-600);
+}
+
+.swatch-webhook {
+  background: var(--color-terracotta-500);
+}
+
+.swatch-email {
+  background: var(--color-navy-600);
+}

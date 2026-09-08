@@ -1,0 +1,259 @@
+<div class="alerts">
+  <app-page-header
+    title="Alertas"
+    subtitle="Assim que surge uma licitação que bate com o critério, avisamos por email. Se preferir receber num endpoint do seu sistema, use Webhooks."
+  >
+    <button type="button" class="btn btn-primary btn-sm" (click)="openCreateModal()">
+      Criar alerta
+    </button>
+  </app-page-header>
+
+  @if (errorMsg()) {
+    <div class="alert alert-error">{{ errorMsg() }}</div>
+  }
+
+  <p class="alerts__recipient">
+    Os avisos chegam em
+    <strong>{{ accountEmail() ?? 'seu email de cadastro' }}</strong>
+    — o mesmo email da sua conta. Para mudar o destino, troque o email da conta.
+  </p>
+
+  <section class="card panel-wide">
+    @if (loading()) {
+      <app-skeleton variant="table" [rows]="4" [columns]="4" />
+    } @else if (alerts().length === 0) {
+      <app-empty-state
+        title="Você ainda não tem nenhum alerta"
+        hint="Crie um alerta para receber por email as licitações novas que baterem com o seu critério."
+      >
+        <button type="button" class="btn btn-outline btn-sm" (click)="openCreateModal()">
+          Criar alerta
+        </button>
+      </app-empty-state>
+    } @else {
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Critério</th>
+              <th>Status</th>
+              <th class="col-actions">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (a of alerts(); track a.id) {
+              <tr>
+                <td>{{ displayLabel(a) }}</td>
+                <td>{{ displayCriteria(a) }}</td>
+                <td><app-status-badge [tone]="statusTone(a)">{{ statusLabel(a) }}</app-status-badge></td>
+                <td class="col-actions">
+                  <button type="button" class="btn btn-outline btn-xs" (click)="startEdit(a)">
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-outline btn-xs"
+                    (click)="runTest(a)"
+                    [disabled]="busyId() === a.id"
+                  >
+                    Testar
+                  </button>
+                  <button type="button" class="btn btn-outline btn-xs" (click)="startCopy(a)">
+                    Copiar para um webhook
+                  </button>
+                  @if (!a.active) {
+                    <button
+                      type="button"
+                      class="btn btn-outline btn-xs"
+                      (click)="reactivate(a)"
+                      [disabled]="busyId() === a.id"
+                    >
+                      Reativar
+                    </button>
+                  }
+                  <button type="button" class="btn btn-outline btn-xs" (click)="openDeliveries(a)">
+                    Entregas
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-danger-outline btn-xs"
+                    (click)="askDelete(a)"
+                    [disabled]="busyId() === a.id"
+                  >
+                    Excluir
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</div>
+
+@if (showCreateModal()) {
+  <app-modal-shell title="Criar alerta" (closed)="closeCreateModal()">
+    <p class="form-hint">
+      O aviso vai para <strong>{{ accountEmail() ?? 'o email da sua conta' }}</strong>.
+    </p>
+    <app-text-field
+      label="Nome (opcional)"
+      placeholder="ex.: Merenda em GO"
+      [ngModel]="createForm().name"
+      (ngModelChange)="updateCreateField('name', $event)"
+      name="alName"
+    />
+    <div class="form-row">
+      <app-select-field
+        label="UF"
+        placeholder="Selecione"
+        [required]="true"
+        [options]="ufOptions"
+        [ngModel]="createForm().uf"
+        (ngModelChange)="updateCreateField('uf', $event)"
+        name="alUf"
+      />
+      <div class="alerts__field-with-hint">
+        <app-select-field
+          label="Modalidade"
+          placeholder="Selecione"
+          [required]="true"
+          [options]="modalidadeOptions"
+          [ngModel]="createForm().modalidade"
+          (ngModelChange)="updateCreateField('modalidade', $event)"
+          name="alModalidade"
+        />
+        <app-help-tooltip
+          ariaLabel="Por que a modalidade é um select"
+          text="A checagem de alerta compara pelo nome oficial da modalidade no PNCP, letra por letra -- por isso é um select, não texto livre: assim o critério sempre casa com o valor real."
+        />
+      </div>
+    </div>
+    <app-text-field
+      label="Palavra-chave (opcional)"
+      placeholder="ex.: informática, merenda escolar"
+      hint="Deixe em branco para receber tudo da UF e modalidade escolhidas."
+      [ngModel]="createForm().keyword"
+      (ngModelChange)="updateCreateField('keyword', $event)"
+      name="alKeyword"
+    />
+    @if (createError()) {
+      <p class="form-error">{{ createError() }}</p>
+    }
+    <div modalFooter>
+      <button type="button" class="btn btn-outline" (click)="closeCreateModal()" [disabled]="creating()">
+        Cancelar
+      </button>
+      <button type="button" class="btn btn-primary" (click)="submitCreate()" [disabled]="creating()">
+        {{ creating() ? 'Criando...' : 'Criar' }}
+      </button>
+    </div>
+  </app-modal-shell>
+}
+
+@if (editing(); as a) {
+  <app-modal-shell title="Editar alerta" size="sm" (closed)="closeEdit()">
+    <p class="form-hint">
+      UF, modalidade e palavra-chave não podem ser alterados: exclua e crie um novo alerta se
+      precisar mudar o critério.
+    </p>
+    <app-text-field
+      label="Nome"
+      [ngModel]="editName()"
+      (ngModelChange)="editName.set($event)"
+      name="alEditName"
+    />
+    <div modalFooter>
+      <button type="button" class="btn btn-outline" (click)="closeEdit()" [disabled]="savingEdit()">
+        Cancelar
+      </button>
+      <button type="button" class="btn btn-primary" (click)="confirmEdit()" [disabled]="savingEdit()">
+        {{ savingEdit() ? 'Salvando...' : 'Salvar' }}
+      </button>
+    </div>
+  </app-modal-shell>
+}
+
+@if (copying(); as a) {
+  <app-modal-shell title="Copiar para um webhook" size="sm" (closed)="closeCopy()">
+    <p class="form-hint">
+      Cria um webhook novo com o mesmo critério deste alerta
+      (<strong>{{ displayCriteria(a) }}</strong>), entregando num endpoint seu em vez de por email.
+      O alerta por email continua ativo.
+    </p>
+    <app-text-field
+      label="URL do webhook"
+      type="url"
+      placeholder="https://seu-servico.com/webhook"
+      hint="Recebe um POST assinado a cada licitação que casar com o critério."
+      [error]="copyError()"
+      [ngModel]="copyUrl()"
+      (ngModelChange)="copyUrl.set($event)"
+      name="alCopyUrl"
+    />
+    <div modalFooter>
+      <button type="button" class="btn btn-outline" (click)="closeCopy()" [disabled]="copyBusy()">
+        Cancelar
+      </button>
+      <button type="button" class="btn btn-primary" (click)="confirmCopy()" [disabled]="copyBusy()">
+        {{ copyBusy() ? 'Criando...' : 'Criar webhook' }}
+      </button>
+    </div>
+  </app-modal-shell>
+}
+
+@if (deliveriesOf(); as a) {
+  <app-modal-shell [title]="'Entregas de ' + displayLabel(a)" (closed)="closeDeliveries()">
+    @if (deliveriesLoading()) {
+      <app-skeleton variant="table" [rows]="3" [columns]="3" />
+    } @else if (deliveries().length === 0) {
+      <app-empty-state
+        title="Nenhuma entrega ainda"
+        hint="Assim que uma licitação casar com o critério, o envio aparece aqui. Use “Testar” para disparar um email agora."
+      />
+    } @else {
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Quando</th>
+              <th>Resultado</th>
+              <th>Tentativas</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (d of deliveries(); track d.timestamp) {
+              <tr>
+                <td>{{ d.timestamp | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td>
+                  <app-status-badge [tone]="deliveryTone(d)">
+                    {{ d.success ? 'Enviado' : 'Falhou' }}
+                  </app-status-badge>
+                  @if (d.error) {
+                    <span class="alerts__delivery-error" [title]="d.error">{{ d.error }}</span>
+                  }
+                </td>
+                <td>{{ d.attempts }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </app-modal-shell>
+}
+
+@if (deleting(); as a) {
+  <app-confirm-dialog
+    title="Excluir alerta"
+    confirmLabel="Excluir"
+    busyLabel="Excluindo..."
+    [busy]="deleteBusy()"
+    (confirmed)="confirmDelete()"
+    (cancelled)="cancelDelete()"
+  >
+    <p>O alerta <strong>{{ displayLabel(a) }}</strong> para de disparar na hora. Não dá para desfazer.</p>
+  </app-confirm-dialog>
+}

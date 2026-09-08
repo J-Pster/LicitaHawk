@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+
+# Tooling state (local-only, not part of the product)
+.omc/
+.serena/
+.vscode/service-platform/

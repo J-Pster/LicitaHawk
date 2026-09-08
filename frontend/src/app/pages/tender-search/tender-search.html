@@ -1,0 +1,265 @@
+<div class="tender-search">
+  <app-page-header
+    title="Buscar licitações"
+    subtitle="A mesma busca pública que sua API key usa, sem escrever código."
+  />
+
+  @if (recentSearches().length > 0) {
+    <div class="tender-search__recent">
+      <span class="overline">Buscas recentes</span>
+      <div class="tender-search__recent-list">
+        @for (entry of recentSearches(); track entry.timestamp) {
+          <button type="button" class="chip" (click)="applyRecentSearch(entry)">
+            {{ recentSearchLabel(entry.criteria) }}
+          </button>
+        }
+      </div>
+    </div>
+  }
+
+  <section class="card panel-wide">
+    <form (ngSubmit)="search()">
+      <div class="form-row">
+        <div class="form-group">
+          <span class="form-label">UF (uma ou mais)</span>
+          <app-multi-select
+            [options]="ufOptions"
+            [selected]="selectedUfs()"
+            placeholder="Todas as UFs"
+            singularLabel="UF"
+            pluralLabel="UFs"
+            (selectionChange)="selectedUfs.set($event)"
+          />
+        </div>
+        <div class="form-group">
+          <span class="form-label">Modalidade (uma ou mais)</span>
+          <app-multi-select
+            [options]="modalidadeOptions"
+            [selected]="selectedModalidades()"
+            placeholder="Todas as modalidades"
+            singularLabel="modalidade"
+            pluralLabel="modalidades"
+            (selectionChange)="selectedModalidades.set($event)"
+          />
+        </div>
+      </div>
+
+      @if (missingIndexFilter()) {
+        <p class="form-hint">Selecione ao menos uma UF ou uma modalidade para buscar.</p>
+      } @else if (tooManyPairs()) {
+        <p class="form-error">
+          Essa combinação gera {{ queryPairs() }} recortes de busca, acima do limite. Reduza a
+          quantidade de UFs ou de modalidades.
+        </p>
+      }
+
+      <app-text-field
+        label="Palavra-chave (opcional)"
+        placeholder="ex.: informática, merenda escolar"
+        hint="Filtra dentro do recorte de UF e/ou modalidade escolhido acima."
+        [clearable]="true"
+        [ngModel]="keyword()"
+        (ngModelChange)="keyword.set($event)"
+        name="tsKeyword"
+      />
+
+      <div class="form-row">
+        <app-text-field
+          label="Município (opcional)"
+          placeholder="ex.: Goiânia"
+          hint="Ignora acento e maiúsculas."
+          [clearable]="true"
+          [ngModel]="municipio()"
+          (ngModelChange)="municipio.set($event)"
+          name="tsMunicipio"
+        />
+        <div class="form-group">
+          <span class="form-label">Situação (opcional)</span>
+          <app-multi-select
+            [options]="situacaoOptions"
+            [selected]="selectedSituacoes()"
+            placeholder="Todas as situações"
+            singularLabel="situação"
+            pluralLabel="situações"
+            (selectionChange)="selectedSituacoes.set($event)"
+          />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <app-text-field
+          label="Valor mínimo (R$)"
+          type="number"
+          min="0"
+          [ngModel]="valorMin()"
+          (ngModelChange)="valorMin.set($event)"
+          name="tsValorMin"
+        />
+        <app-text-field
+          label="Valor máximo (R$)"
+          type="number"
+          min="0"
+          [ngModel]="valorMax()"
+          (ngModelChange)="valorMax.set($event)"
+          name="tsValorMax"
+        />
+      </div>
+
+      <div class="form-row">
+        <app-text-field
+          label="Publicada a partir de"
+          type="date"
+          [ngModel]="dataInicial()"
+          (ngModelChange)="dataInicial.set($event)"
+          name="tsDataInicial"
+        />
+        <app-text-field
+          label="Publicada até"
+          type="date"
+          [ngModel]="dataFinal()"
+          (ngModelChange)="dataFinal.set($event)"
+          name="tsDataFinal"
+        />
+      </div>
+      <p class="form-hint">Preencha as duas datas juntas, ou deixe as duas em branco.</p>
+
+      <app-select-field
+        label="Ordenar por"
+        [options]="sortOptions"
+        [ngModel]="sort()"
+        (ngModelChange)="sort.set($event)"
+        name="tsSort"
+      />
+
+      <div class="tender-search__actions">
+        <button type="submit" class="btn btn-primary" [disabled]="loading() || !canSearch()">
+          {{ loading() ? 'Buscando...' : 'Buscar' }}
+        </button>
+        <button type="button" class="btn btn-outline" (click)="openSaveModal()">
+          Salvar este filtro
+        </button>
+      </div>
+    </form>
+  </section>
+
+  @if (errorMsg()) {
+    <div class="alert alert-error">{{ errorMsg() }}</div>
+  }
+
+  @if (searched()) {
+    <section class="card panel-wide">
+      <div class="panel-head">
+        <span class="tender-search__count">{{ results().length }} resultado(s)</span>
+        <div class="tender-search__result-actions">
+          @if (results().length > 0) {
+            <button
+              type="button"
+              class="btn btn-outline btn-sm"
+              (click)="exportCsv()"
+              title="Exporta apenas os resultados já carregados na tela"
+            >
+              Exportar CSV
+            </button>
+          }
+          <button type="button" class="btn-link" (click)="toggleCurl()">
+            {{ showCurl() ? 'Ocultar' : 'Ver como isso funciona via API' }}
+          </button>
+        </div>
+      </div>
+
+      @if (showCurl() && lastParams()) {
+        <div class="tender-search__curl">
+          <p class="form-hint">
+            É assim que essa mesma busca funciona direto na API pública, usando sua API key (gerada
+            em "API keys") no lugar de <code>SUA_API_KEY</code>:
+          </p>
+          <app-code-block label="cURL" [code]="curlCommand()" />
+        </div>
+      }
+
+      @if (loading()) {
+        <app-skeleton variant="table" [rows]="6" [columns]="6" />
+      } @else if (results().length === 0) {
+        <app-empty-state
+          title="Nenhuma licitação encontrada com esses filtros"
+          hint="Tente ampliar o período, remover a faixa de valor ou trocar a palavra-chave."
+        />
+      } @else {
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Órgão</th>
+                <th>UF</th>
+                <th>Modalidade</th>
+                <th>Valor estimado</th>
+                <th>Publicada em</th>
+                <th class="col-actions">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (t of results(); track t.pncp_control_number) {
+                <tr class="clickable-row" (click)="openDetail(t.pncp_control_number)">
+                  <td><span class="text-truncate" [title]="t.org_name">{{ t.org_name }}</span></td>
+                  <td>{{ t.uf }}</td>
+                  <td>{{ t.modalidade }}</td>
+                  <td>{{ t.valor_estimado | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</td>
+                  <td>{{ t.data_publicacao | date:'dd/MM/yyyy' }}</td>
+                  <td class="col-actions">
+                    <button
+                      type="button"
+                      class="btn-link"
+                      (click)="openDetail(t.pncp_control_number); $event.stopPropagation()"
+                    >
+                      Abrir ↗
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        @if (nextCursor()) {
+          <div class="tender-search__load-more">
+            <button
+              type="button"
+              class="btn btn-outline btn-sm"
+              (click)="loadMore()"
+              [disabled]="loadingMore()"
+            >
+              {{ loadingMore() ? 'Carregando...' : 'Carregar mais ' + pageSize }}
+            </button>
+            @if (partialPage()) {
+              <app-help-tooltip
+                ariaLabel="Por que vieram menos resultados nesta página"
+                text="Esta página veio com menos resultados porque a busca atingiu o limite de leitura por requisição, não porque os resultados acabaram. Clique em Carregar mais para continuar."
+              />
+            }
+          </div>
+        }
+      }
+    </section>
+  }
+</div>
+
+@if (showSaveModal()) {
+  <app-modal-shell title="Salvar filtro" size="sm" (closed)="closeSaveModal()">
+    <app-text-field
+      label="Nome do filtro"
+      placeholder="ex.: Informática em GO"
+      [error]="saveError()"
+      [ngModel]="saveName()"
+      (ngModelChange)="saveName.set($event)"
+      name="tsSaveName"
+    />
+    <div modalFooter>
+      <button type="button" class="btn btn-outline" (click)="closeSaveModal()" [disabled]="saving()">
+        Cancelar
+      </button>
+      <button type="button" class="btn btn-primary" (click)="confirmSave()" [disabled]="saving()">
+        {{ saving() ? 'Salvando...' : 'Salvar' }}
+      </button>
+    </div>
+  </app-modal-shell>
+}

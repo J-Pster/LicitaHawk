@@ -1,0 +1,12 @@
+{
+  "TableName": "UsageCounters",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    { "AttributeName": "customer_id", "AttributeType": "S" },
+    { "AttributeName": "yyyymm", "AttributeType": "S" }
+  ],
+  "KeySchema": [
+    { "AttributeName": "customer_id", "KeyType": "HASH" },
+    { "AttributeName": "yyyymm", "KeyType": "RANGE" }
+  ]
+}

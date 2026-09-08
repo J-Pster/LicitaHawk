@@ -1,0 +1,24 @@
+{
+  "TableName": "SavedFilters",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    { "AttributeName": "customer_id", "AttributeType": "S" },
+    { "AttributeName": "filter_id", "AttributeType": "S" },
+    { "AttributeName": "uf", "AttributeType": "S" },
+    { "AttributeName": "modalidade", "AttributeType": "S" }
+  ],
+  "KeySchema": [
+    { "AttributeName": "customer_id", "KeyType": "HASH" },
+    { "AttributeName": "filter_id", "KeyType": "RANGE" }
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "GSI-uf-modalidade",
+      "KeySchema": [
+        { "AttributeName": "uf", "KeyType": "HASH" },
+        { "AttributeName": "modalidade", "KeyType": "RANGE" }
+      ],
+      "Projection": { "ProjectionType": "ALL" }
+    }
+  ]
+}

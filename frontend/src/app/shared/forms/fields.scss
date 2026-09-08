@@ -1,0 +1,55 @@
+:host {
+  display: block;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field__required {
+  margin-left: 2px;
+  color: var(--color-danger);
+}
+
+.field__control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.field__input {
+  width: 100%;
+}
+
+.field__control--error .field__input {
+  border-color: var(--color-danger);
+}
+
+.field__control--error .field__input:focus {
+  box-shadow: 0 0 0 3px var(--color-danger-bg);
+}
+
+.field__clear {
+  position: absolute;
+  right: 6px;
+}
+
+/* Espaco para o botao de limpar nao cobrir o texto digitado. */
+.field__control:has(.field__clear) .field__input {
+  padding-right: 38px;
+}
+
+.field__control--select .field__input {
+  appearance: none;
+  padding-right: 38px;
+  cursor: pointer;
+}
+
+.field__chevron {
+  position: absolute;
+  right: 12px;
+  pointer-events: none;
+  color: var(--text-muted);
+}

@@ -1,0 +1,88 @@
+<app-modal-shell
+  [title]="step() === 'form' ? 'Assinar plano ' + planName() : 'Cobrança gerada'"
+  [dismissible]="!submitting()"
+  (closed)="close()"
+>
+  @switch (step()) {
+    @case ('form') {
+      <ng-container>
+        @if (formError()) {
+          <div class="alert alert-error">{{ formError() }}</div>
+        }
+        <p class="form-hint checkout-intro">
+          O Asaas exige nome e CPF/CNPJ para emitir a cobrança do plano {{ planName() }}. Esses
+          dados não vêm do seu login.
+        </p>
+
+        <app-text-field
+          label="Nome completo ou razão social"
+          placeholder="Como consta no CPF ou CNPJ"
+          [ngModel]="name"
+          (ngModelChange)="onNameInput($event)"
+          name="checkoutName"
+          [error]="nameError() ?? ''"
+          [required]="true"
+        />
+        <app-text-field
+          label="CPF ou CNPJ"
+          placeholder="000.000.000-00"
+          [ngModel]="cpfCnpj"
+          (ngModelChange)="onCpfCnpjInput($event)"
+          name="checkoutCpfCnpj"
+          hint="Usado só para emitir a cobrança no Asaas."
+          [error]="cpfCnpjError() ?? ''"
+          [required]="true"
+        />
+      </ng-container>
+    }
+    @case ('result') {
+      @if (result(); as r) {
+        <ng-container>
+          <div class="alert alert-success">
+            Cobrança do plano {{ planName() }} gerada com sucesso.
+          </div>
+
+          <a class="btn btn-primary btn-block" [href]="r.checkout_url" target="_blank" rel="noopener">
+            Abrir fatura (boleto, cartão ou Pix)
+          </a>
+          <p class="form-hint">
+            Esse link é o caminho garantido para pagar. Guarde-o caso precise retomar depois.
+          </p>
+
+          @if (r.pix_qr_code; as pix) {
+            <div class="pix-block">
+              <h3>Ou pague com Pix</h3>
+              <img class="pix-qr" [src]="'data:image/png;base64,' + pix.encoded_image" alt="QR code Pix" />
+              <button type="button" class="btn btn-outline btn-sm" (click)="copyPixPayload(pix.payload)">
+                Copiar código Pix
+              </button>
+            </div>
+          } @else {
+            <p class="form-hint pix-pending-note">
+              O QR code do Pix pode levar alguns segundos para ficar pronto. Não precisa esperar: o
+              botão acima já abre a fatura para pagar por boleto, cartão ou Pix.
+            </p>
+          }
+        </ng-container>
+      }
+    }
+  }
+
+  @switch (step()) {
+    @case ('form') {
+      <div modalFooter>
+        <button type="button" class="btn btn-outline" [disabled]="submitting()" (click)="close()">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn-primary" [disabled]="submitting()" (click)="submit()">
+          {{ submitting() ? 'Gerando cobrança...' : 'Gerar cobrança' }}
+        </button>
+      </div>
+    }
+    @case ('result') {
+      <div modalFooter>
+        <button type="button" class="btn btn-outline" (click)="close()">Fechar</button>
+      </div>
+    }
+  }
+</app-modal-shell>

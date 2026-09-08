@@ -1,0 +1,103 @@
+<div class="overview">
+  <app-page-header title="Visão geral" subtitle="O resumo da sua conta no LicitaHawk." />
+
+  @if (loading()) {
+    <div class="overview__grid">
+      <app-skeleton variant="card" [height]="120" />
+      <app-skeleton variant="card" [height]="120" />
+      <app-skeleton variant="card" [height]="120" />
+      <app-skeleton variant="card" [height]="120" />
+      <app-skeleton variant="card" [height]="120" />
+    </div>
+  } @else if (errorMsg()) {
+    <div class="alert alert-error">{{ errorMsg() }}</div>
+  } @else {
+    @if (justProvisionedApiKey()) {
+      <div class="card overview__api-banner">
+        <div class="overview__api-banner-head">
+          <h3>Nova chave de API criada</h3>
+          <button type="button" class="btn-link" (click)="dismissApiKeyBanner()">Ocultar</button>
+        </div>
+        <p class="form-hint">
+          Copie e guarde agora: por segurança, a chave não aparece de novo depois desta tela.
+        </p>
+        <a class="btn btn-outline btn-sm" routerLink="/app/api-keys">Ver e copiar a chave</a>
+      </div>
+    }
+
+    <div class="overview__grid">
+      <a class="card overview__card" routerLink="/app/conta">
+        <span class="overline">Plano atual</span>
+        <span class="badge" [class]="'badge-' + (account()?.plan_tier ?? 'free')">
+          {{ planLabel() }}
+        </span>
+        <span class="overview__card-hint">Ver plano e cobrança</span>
+      </a>
+
+      <a class="card overview__card" routerLink="/app/uso">
+        <span class="overline">Uso do mês</span>
+        <span class="overview__card-value">
+          {{ usage()?.requestsThisMonth ?? 0 }} / {{ usage()?.monthlyLimit ?? 0 }}
+        </span>
+        <div class="overview__progress">
+          <div
+            class="overview__progress-fill"
+            [class.overview__progress-fill--warning]="usagePercent() >= 70 && usagePercent() < 90"
+            [class.overview__progress-fill--danger]="usagePercent() >= 90"
+            [style.width.%]="usagePercent()"
+          ></div>
+        </div>
+        <span class="overview__card-hint">{{ usagePercent() }}% do limite mensal</span>
+      </a>
+
+      <a class="card overview__card" routerLink="/app/uso">
+        <span class="overline">Limite por minuto</span>
+        <span class="overview__card-value">{{ usage()?.perMinuteLimit ?? 0 }} req/min</span>
+        <span class="overview__card-hint">Ver histórico de uso</span>
+      </a>
+
+      <a class="card overview__card" routerLink="/app/filtros">
+        <span class="overline">Filtros salvos</span>
+        <span class="overview__card-value">{{ savedSearchesCount() }}</span>
+        <span class="overview__card-hint">Gerenciar filtros salvos</span>
+      </a>
+
+      <a class="card overview__card" routerLink="/app/alertas">
+        <span class="overline">Alertas ativos</span>
+        <span class="overview__card-value">{{ activeWebhooksCount() }}</span>
+        <span class="overview__card-hint">Gerenciar alertas</span>
+      </a>
+    </div>
+
+    <section class="card panel-wide overview__onboarding">
+      <div class="panel-head"><h2>Primeiros passos</h2></div>
+      <ul class="overview__steps">
+        @for (step of onboardingSteps(); track step.label) {
+          <li class="overview__step" [class.overview__step--done]="step.done">
+            <span class="overview__step-check" aria-hidden="true">
+              @if (step.done) {
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              }
+            </span>
+            <a [routerLink]="step.route">{{ step.label }}</a>
+          </li>
+        }
+      </ul>
+    </section>
+
+    @if (account()?.plan_tier === 'free') {
+      <section class="card overview__upgrade">
+        <div>
+          <h3>Desbloqueie mais requisições e alertas</h3>
+          <p class="form-hint">
+            Planos pagos aumentam o limite mensal, o limite por minuto e o número de alertas
+            simultâneos.
+          </p>
+        </div>
+        <a class="btn btn-primary" routerLink="/app/conta">Ver planos</a>
+      </section>
+    }
+  }
+</div>
