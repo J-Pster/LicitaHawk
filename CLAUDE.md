@@ -55,7 +55,7 @@ Trabalhe sempre na branch atual. Proibido `git checkout -b`, `git branch <nome>`
 Só quando o usuário pedir explicitamente, mesmo com mudanças prontas. Nunca adicionar trailer de co-autoria de IA.
 
 ## Infra
-- **Conta AWS deste projeto: profile `LicitaHawk`** (account `077815499824`, região `us-east-1`, SSO em `https://joaopster.awsapps.com/start`). **Nunca** use `BidChexProduction` aqui: é outra conta, outro produto. Todo comando leva `--profile LicitaHawk`. Se der `Token has expired`, rode `aws sso login --profile LicitaHawk` você mesmo e continue.
+- **Conta AWS deste projeto: profile `LicitaHawk`** (account `077815499824`, região `us-east-1`, SSO em `https://joaopster.awsapps.com/start`). **Nunca** use outro profile AWS aqui: cada profile é outra conta, outro produto. Todo comando leva `--profile LicitaHawk`. Se der `Token has expired`, rode `aws sso login --profile LicitaHawk` você mesmo e continue.
   - Hosted zone Route 53: `licitahawk.com.` → `Z0432805FV5S4B9AIEPM`.
 - **Nunca `cdk deploy`, nunca IaC.** Infra AWS via AWS CLI puro (regra ativa desde a criação do User Pool do Cognito, exceção já autorizada e documentada no `PLAN.md`).
 - Fase 7 (deploy AWS real) e Fase 8 (validação de mercado) estão **fora de escopo** salvo pedido explícito.
